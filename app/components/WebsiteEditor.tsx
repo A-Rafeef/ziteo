@@ -1,5 +1,5 @@
 'use client';
-import {useCallback,useEffect,useReducer,useRef,useState,type CSSProperties} from 'react';
+import {useCallback,useEffect,useReducer,useRef,useState,useSyncExternalStore,type CSSProperties} from 'react';
 import {ArrowLeft,ArrowRight,ArrowUp,ArrowDown,Check,CheckCircle2,ChevronDown,Globe,GripVertical,Home,Image as ImageIcon,Layers,LayoutTemplate,Loader2,Lock,Monitor,MousePointer2,Move,Package,Plus,Redo2,Save,Settings2,ShieldCheck,Smartphone,Sparkles,Trash2,Undo2,X} from 'lucide-react';
 import {api,type Design,type Store,type Workspace} from '../types';
 import {createEditorHistory,editorHistory,sameDesign,shouldGuardLeave} from '../editor-history';
@@ -11,12 +11,16 @@ type Page='home'|'product';
 type Template='minimal'|'editorial'|'bold';
 const names:Record<string,string>={navbar:'Navigation bar',hero:'Hero section',products:'Product section',about:'About your business',banner:'Image banner',text:'Text section',contact:'Contact section',footer:'Footer','product-detail':'Product details'};
 const core=['navbar','products','footer'];
+const subscribeViewport=(listener:()=>void)=>{const query=window.matchMedia('(max-width:900px)');query.addEventListener('change',listener);return()=>query.removeEventListener('change',listener);};
+const readMobileViewport=()=>window.matchMedia('(max-width:900px)').matches;
 const palettes=['#284b3e','#8b4b32','#49466e','#253d5b','#272727'];
 const templateNames:Record<string,string[]>={navbar:['Simple & spacious','Centered identity','Bold navigation'],hero:['Quiet introduction','Editorial story','Bold statement'],products:['Clean collection','Editorial cards','Soft showcase'],footer:['Simple sign-off','A considered finish','Bold footer'],'product-detail':['Simple details','Editorial details','Bold details']};
 
 export default function WebsiteEditor({data,onRefresh,onLeave,backPage}:Props){
  const [history,dispatch]=useReducer(editorHistory,data.store.draftDesign,createEditorHistory);
- const [saved,setSaved]=useState(data.store.draftDesign),[selected,setSelected]=useState<string|null>(null),[tab,setTab]=useState<'templates'|'customize'>('templates'),[device,setDevice]=useState<'mobile'|'desktop'>('mobile'),[page,setPage]=useState<Page>('home'),[pageMenu,setPageMenu]=useState(false),[sectionsOpen,setSectionsOpen]=useState(false),[inspect,setInspect]=useState(true),[busy,setBusy]=useState<'save'|'publish'|null>(null),[error,setError]=useState(''),[toast,setToast]=useState(''),[leaveTarget,setLeaveTarget]=useState<string|null>(null),[readinessOpen,setReadinessOpen]=useState(false),[frameReady,setFrameReady]=useState(false),[size,setSize]=useState({width:1000,height:700});
+ const [saved,setSaved]=useState(data.store.draftDesign),[selected,setSelected]=useState<string|null>(null),[tab,setTab]=useState<'templates'|'customize'>('templates'),[deviceOverride,setDevice]=useState<'mobile'|'desktop'|null>(null),[page,setPage]=useState<Page>('home'),[pageMenu,setPageMenu]=useState(false),[sectionsOpen,setSectionsOpen]=useState(false),[inspect,setInspect]=useState(true),[busy,setBusy]=useState<'save'|'publish'|null>(null),[error,setError]=useState(''),[toast,setToast]=useState(''),[leaveTarget,setLeaveTarget]=useState<string|null>(null),[readinessOpen,setReadinessOpen]=useState(false),[frameReady,setFrameReady]=useState(false),[size,setSize]=useState({width:1000,height:700});
+ const mobileViewport=useSyncExternalStore(subscribeViewport,readMobileViewport,()=>true);
+ const device=deviceOverride||(mobileViewport?'mobile':'desktop');
  const products=data.products.filter(p=>p.status!=='archived');
  const [productId,setProductId]=useState(products[0]?.id||'');
  const readiness=publishReadiness(data.store,data.products);
@@ -26,7 +30,7 @@ export default function WebsiteEditor({data,onRefresh,onLeave,backPage}:Props){
  const patch=(next:Partial<Design>,mergeKey?:string)=>dispatch({type:'change',design:{...current,...next},mergeKey});
  const select=useCallback((section:string)=>{if(!names[section])return;setSelected(section);setTab('templates');setSectionsOpen(false);},[]);
  const requestLeave=useCallback((target:string)=>{if(leaving.current)return;if(guardRef.current){selectedBeforeDialog.current=document.activeElement as HTMLElement;setLeaveTarget(target);setError('');}else{leaving.current=true;onLeave(target);}},[onLeave]);
- useEffect(()=>{setDevice(window.matchMedia('(max-width:900px)').matches?'mobile':'desktop');const prior=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{document.body.style.overflow=prior;};},[]);
+ useEffect(()=>{const prior=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{document.body.style.overflow=prior;};},[]);
  useEffect(()=>{const node=stage.current;if(!node)return;const observer=new ResizeObserver(()=>setSize({width:node.clientWidth,height:node.clientHeight}));observer.observe(node);return()=>observer.disconnect();},[selected,sectionsOpen]);
  useEffect(()=>{if(!toast)return;const timer=setTimeout(()=>setToast(''),4000);return()=>clearTimeout(timer);},[toast]);
  useEffect(()=>{const unload=(event:BeforeUnloadEvent)=>{if(guardRef.current&&!leaving.current){event.preventDefault();event.returnValue='';}};const hash=()=>{const target=location.hash.slice(1);if(target==='website'||leaving.current)return;window.history.replaceState(window.history.state,'',location.pathname+location.search+'#website');requestLeave(['overview','products','analytics','settings','customers','inventory','orders'].includes(target)?target:backPage);};window.addEventListener('beforeunload',unload);window.addEventListener('hashchange',hash);return()=>{window.removeEventListener('beforeunload',unload);window.removeEventListener('hashchange',hash);};},[backPage,requestLeave]);

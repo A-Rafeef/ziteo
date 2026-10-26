@@ -1,0 +1,28 @@
+name: Database release
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: production-database
+  cancel-in-progress: false
+jobs:
+  migrate:
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx supabase link --project-ref "$SUPABASE_PROJECT_REF"
+      - run: npx supabase db push --dry-run
+      - run: npx supabase db push --yes

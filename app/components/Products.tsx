@@ -37,7 +37,8 @@ export default function Products({products,onRefresh,notify}:Props){
   const [uploading,setUploading]=useState(false);const [saving,setSaving]=useState(false);const [menu,setMenu]=useState<string|null>(null);const [archiveTarget,setArchiveTarget]=useState<Product|null>(null);const [busy,setBusy]=useState(false);
   const [showImageUrl,setShowImageUrl]=useState(false);const [imageUrl,setImageUrl]=useState('');
   const [menuPosition,setMenuPosition]=useState({top:0,left:0});
-  const formRef=useRef<HTMLDivElement>(null);const fileRef=useRef<HTMLInputElement>(null);const returnFocus=useRef<HTMLElement|null>(null);const dialogBusy=useRef(false);dialogBusy.current=saving||uploading||busy;
+  const formRef=useRef<HTMLDivElement>(null);const fileRef=useRef<HTMLInputElement>(null);const returnFocus=useRef<HTMLElement|null>(null);const dialogBusy=useRef(false);
+  useEffect(()=>{dialogBusy.current=saving||uploading||busy;},[saving,uploading,busy]);
   const activeCount=products.filter(p=>p.status!=='archived').length;
   const counts={all:activeCount,published:products.filter(p=>p.status==='published').length,draft:products.filter(p=>p.status==='draft').length,archived:products.filter(p=>p.status==='archived').length};
   const visible=useMemo(()=>products.filter(p=>(filter==='all'?p.status!=='archived':p.status===filter)&&`${p.name} ${p.description}`.toLowerCase().includes(query.toLowerCase().trim())),[products,filter,query]);
