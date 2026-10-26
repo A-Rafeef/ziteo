@@ -1,57 +1,48 @@
 # Ziteo
 
-A working review build of the Ziteo product plan: one seller workspace, a structured website editor, and a catalog with WhatsApp buying.
+Seller workspace, visual store editor and WhatsApp storefront. Production baseline: Next.js 16, TypeScript, Tailwind CSS/shadcn, Supabase Postgres/Auth/RLS, private Cloudflare R2, and Vercel. The existing editor and storefront remain in this repository.
 
-## Run locally
+See [production setup and rollout status](docs/PRODUCTION-SETUP.md), [auth configuration](docs/auth-setup.md), [provider contracts](docs/integrations.md), and [API contract](docs/API.md). [AGENTS.md](AGENTS.md) records the selected architecture for future work.
 
-Requires Node 22.13+ and npm. Install with `npm ci`, generate the initial build with `npm run build`, and apply the checked-in database migration locally:
+## Local development
+
+Use Node 22 LTS. Install from the committed lockfile:
 
 ```sh
-node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_adorable_puck.sql
+npm ci
+cp .env.example .env.local
+npm run env:check
 npm run dev
 ```
 
-Open the printed loopback URL. Portable development includes a local mock sign-in at `/signin-with-chatgpt?return_to=/`; that mock is excluded from production. The first sign-in creates one unpublished store with eight clearly labeled sample products. Replace the sample products and add your WhatsApp number in Settings.
-
-## Implemented
-
-- Site-owned sign-in, owner-scoped store and products, and one store per account.
-- Product list/grid, search, drafts/publication, up to five images, ordering, optional sales and discount badges.
-- Up to four variant groups and 100 generated combinations, with individual prices, sale prices, and availability.
-- An atomic server-side 50-product allowance, archive recovery for seven days, and restoration limits.
-- Dedicated full-screen website editor, visual section templates, customization, actual device previews, page switching, undo/redo, optional sections, and protected draft/publish flows.
-- Store publish/unpublish, immutable published slugs, stable `/p/short-id` product links.
-- Public catalog search, newest-first infinite batches, lazy images, product details, and selected-variant WhatsApp messages.
-- Daily UTC store views, product views, and WhatsApp clicks for 7/30 days; editor previews and owner visits excluded.
-- Durable D1 data and R2 uploads. Image content and ownership checks protect unpublished uploads.
-- Mobile workspace navigation, settings, free-plan details, support request copy, central preview terms and privacy information.
-
-## Architecture
-
-The React/Vinext application uses Sites hosting with a Cloudflare Worker, D1 binding `DB`, and R2 binding `BUCKET`. `.openai/hosting.json` holds site identity and binding names, never credentials. `app/server` owns validation and storage logic. `app/api` authorizes every seller operation. `app/components/Products.tsx` owns catalog management; `app/components/Storefront.tsx` renders the catalog; `app/workspace.tsx` owns navigation, overview, settings and analytics; `app/components/WebsiteEditor.tsx` owns editor controls. Business data stays independent of website design drafts.
-
-Hosted authentication is provided by Sites dispatch. Only trusted dispatch identity headers authorize account data. Do not expose the underlying Worker directly without equivalent verified authentication and header sanitization.
-
-## Production work still required
-
-This is a functional review build with the following product-plan work remaining:
-
-- The product plan proposes Supabase and Vercel. This build uses Sites/D1/R2. Migrating requires replacing the database/auth adapters and hosting integration, with equivalent ownership policies and transaction guarantees.
-- Custom email registration, email verification, and password recovery are not implemented. Sign-in uses ChatGPT.
-- Images are resized to at most 1600 pixels and JPEG-compressed in the browser before upload. The server validates image bytes and saves them to R2. A mandatory backend transformation pipeline is still needed to meet the production plan exactly.
-- Support delivery and operator tooling are not configured. Support requests can be copied, but no message is sent. Store deletion and published-slug changes need an authorized operator workflow.
-- Preview terms/privacy pages explain this implementation; finalize production legal policies before public launch.
-- Publishing a store does not change the hosted site's visitor access policy. Manage hosting access separately.
-- Add operational monitoring, rate limits/abuse protection, recovery/backups, and a production security review before opening self-service registration.
-
-Customers, quantity inventory, internal orders/enquiries, services, staff accounts, custom domains, localization, reviews, and CSV tools are intentionally Coming Soon or deferred as in the plan.
+Fill the public Supabase URL and publishable key to use the app. Never expose the secret key through NEXT_PUBLIC variables. Missing provider secrets do not create mock success. Production auth requires a Turnstile site key plus matching CAPTCHA configuration in Supabase.
 
 ## Checks
 
 ```sh
-node node_modules/typescript/bin/tsc --noEmit
-node --experimental-strip-types --test app/editor-history.test.mjs app/website-guidance.test.mjs app/product-presentation.test.mjs app/server/validation.test.mjs
+npm run lint
+npm run typecheck
+npm test
+npm run test:legacy
 npm run build
+npm run test:e2e
 ```
 
-The migration under `drizzle/` is schema-only and tracked. Hosted publication applies migrations before uploading the Worker. Never rewrite an applied migration; append a new one.
+Vitest executes real Postgres SQL via PGlite, including RLS/grants, publication rules and the billing ledger, plus mocked provider and media access tests. Playwright uses the built production server. These are distinct from live provider acceptance tests.
+
+If Windows build workers cannot create output folders, set ZITEO_SERIAL_BUILD=true for the build. This uses the supported serial Webpack build path without skipping type checks.
+
+With Docker and Supabase CLI:
+
+```sh
+npx supabase start
+npm run db:test
+```
+
+Database migrations are reviewed and applied separately from Vercel builds. GitHub Actions includes normal CI and a manual, serialized migration workflow. Configure the production environment with required reviewers before using it.
+
+## Migration from the earlier version
+
+The previous revision used a Sites/Vinext runtime, D1 and ChatGPT authentication. This branch replaces that runtime and identity/data layer. Git preserves the original. Existing live D1 data has not been imported or removed; an audited import must map old owners to confirmed Supabase users and validate all image references before cutover.
+
+One owner/store and 50 active products remain the baseline. Phone verification is required near first publication and after contact-number changes. Seller login stays Google or email/password. Cashfree is sandbox by default; a successful mandate is not proof of payment.

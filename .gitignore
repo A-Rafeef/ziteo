@@ -56,3 +56,9 @@ next-env.d.ts
 /work/
 
 *.tsbuildinfo
+
+!.env.example
+/playwright-report/
+/test-results/
+supabase/.temp/
+supabase/.branches/
