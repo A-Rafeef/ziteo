@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8081/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "ZITEO",
+      "hasCanvas": false,
+      "bodyTextLen": 476,
+      "bodyTextHash": "585e31150bb5c0857de30ba9c69c6352f0a90c9371b5803a2ca3dd92a8560343",
+      "bodyTextPrefix": "ZITEO Home Mobile Tablet Desktop 100% Preview Publish ZITEO 2 Ne",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "ZITEO",
+      "hasCanvas": false,
+      "bodyTextLen": 433,
+      "bodyTextHash": "a72883d2cc50115ca7362967a6d0abbbdc111d41d2af2028d5b39c6e2c19af22",
+      "bodyTextPrefix": "ZITEO Home ZITEO 2 New Built for every routine. Court-ready foot",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-built.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}

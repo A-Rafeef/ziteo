@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    @font-face {
+      font-family: Inter;
+      font-weight: 500;
+      src: url("fonts/Inter-500.ttf") format("truetype");
+    }
+    @font-face {
+      font-family: Inter;
+      font-weight: 600;
+      src: url("fonts/Inter-600.ttf") format("truetype");
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 1200px;
+      height: 630px;
+      overflow: hidden;
+      background: #F5F5F7;
+    }
+    body {
+      font-family: Inter, "Liberation Sans", sans-serif;
+      color: #1D1D1F;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .lockup { text-align: center; }
+    h1 {
+      font-weight: 600;
+      font-size: 228px;
+      letter-spacing: -0.045em;
+      line-height: 0.86;
+      color: #1D1D1F;
+    }
+    .tag {
+      margin-top: 18px;
+      font-weight: 500;
+      font-size: 28px;
+      letter-spacing: -0.018em;
+      color: #6E6E73;
+    }
+    .stage {
+      margin-top: 28px;
+      width: 760px;
+      height: 156px;
+      background: #FFFFFF;
+      border-radius: 20px;
+      box-shadow: 0 18px 50px rgb(0 0 0 / 0.08);
+      border: 1px solid #E8E8ED;
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      overflow: hidden;
+    }
+    .rail {
+      background: #F5F5F7;
+      border-right: 1px solid #E8E8ED;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding-top: 16px;
+    }
+    .dot {
+      width: 22px;
+      height: 22px;
+      border-radius: 7px;
+      background: #FFFFFF;
+      border: 1px solid #E8E8ED;
+    }
+    .dot.on { background: #0071E3; border-color: #0071E3; }
+    .preview {
+      padding: 12px 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 16px;
+    }
+    .mark {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      background: #1D1D1F;
+    }
+    .pill {
+      height: 7px;
+      border-radius: 999px;
+      background: #E8E8ED;
+    }
+    .pill.a { width: 42px; }
+    .pill.b { width: 30px; }
+    .pill.c { width: 26px; margin-left: auto; background: #0071E3; }
+    .hero {
+      height: 48px;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #F5F5F7 0%, #E8E8ED 100%);
+      display: flex;
+      align-items: flex-end;
+      padding: 10px;
+    }
+    .cta {
+      width: 64px;
+      height: 14px;
+      border-radius: 999px;
+      background: #0071E3;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      flex: 1;
+    }
+    .tile {
+      border-radius: 8px;
+      background: #F5F5F7;
+      border: 1px solid #E8E8ED;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .swatch { flex: 1; min-height: 36px; }
+    .swatch.s1 { background: #D2D2D7; }
+    .swatch.s2 { background: #1D1D1F; }
+    .swatch.s3 { background: #C5DDF6; }
+    .meta {
+      height: 14px;
+      display: flex;
+      align-items: center;
+      padding: 0 7px;
+      gap: 6px;
+      background: #FFFFFF;
+    }
+    .bar { height: 4px; border-radius: 999px; background: #D2D2D7; }
+    .bar.w { width: 36px; }
+    .bar.p { width: 16px; margin-left: auto; background: #0071E3; }
+  </style>
+</head>
+<body>
+  <div class="lockup">
+    <h1>ZITEO</h1>
+    <div class="tag">Storefront editor</div>
+  </div>
+  <div class="stage">
+    <div class="rail">
+      <div class="dot on"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+    <div class="preview">
+      <div class="nav">
+        <div class="mark"></div>
+        <div class="pill a"></div>
+        <div class="pill b"></div>
+        <div class="pill c"></div>
+      </div>
+      <div class="hero"><div class="cta"></div></div>
+      <div class="grid">
+        <div class="tile"><div class="swatch s1"></div><div class="meta"><div class="bar w"></div><div class="bar p"></div></div></div>
+        <div class="tile"><div class="swatch s2"></div><div class="meta"><div class="bar w"></div><div class="bar p"></div></div></div>
+        <div class="tile"><div class="swatch s3"></div><div class="meta"><div class="bar w"></div><div class="bar p"></div></div></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

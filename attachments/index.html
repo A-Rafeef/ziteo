@@ -1,0 +1,2721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>ZITEO • Modern Website Editor (Mobile & Desktop)</title>
+  
+  <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            ziteo: {
+              purple: '#53389E',
+              'purple-dark': '#422882',
+              'purple-light': '#6941C6',
+              accent: '#7D2AE8',
+              surface: '#F8F9FA',
+            }
+          },
+          animation: {
+            'slide-up': 'slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            'slide-down': 'slideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            'fade-in': 'fadeIn 0.2s ease-out forwards',
+            'scale-up': 'scaleUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+          },
+          keyframes: {
+            slideUp: {
+              '0%': { transform: 'translateY(100%)' },
+              '100%': { transform: 'translateY(0)' },
+            },
+            slideDown: {
+              '0%': { transform: 'translateY(0)' },
+              '100%': { transform: 'translateY(100%)' },
+            },
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' },
+            },
+            scaleUp: {
+              '0%': { opacity: '0', transform: 'scale(0.96)' },
+              '100%': { opacity: '1', transform: 'scale(1)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Prevent bouncy touch scroll on outer editor frame */
+    html, body {
+      overscroll-behavior: none;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    
+    /* Dotted Blueprint Canvas Background matching reference screenshot */
+    .bg-dot-pattern {
+      background-color: #f1f5f9;
+      background-image: radial-gradient(#cbd5e1 1.75px, transparent 1.75px);
+      background-size: 20px 20px;
+    }
+
+    /* Smooth touch scrolling */
+    .scroll-touch {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+
+    /* Invisible scrollbars */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Canva Selection Highlight Box */
+    .canva-selected-section {
+      outline: 2px solid #53389E !important;
+      outline-offset: -2px;
+      position: relative;
+    }
+    
+    /* Floating Canva Action Badge */
+    .canva-badge-pill {
+      position: absolute;
+      top: 6px;
+      left: 8px;
+      background: #53389E;
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      box-shadow: 0 4px 10px rgba(83, 56, 158, 0.45);
+      z-index: 45;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Corner Anchor Handles */
+    .canva-handle {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: #ffffff;
+      border: 2px solid #53389E;
+      border-radius: 50%;
+      z-index: 45;
+      pointer-events: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    }
+    .canva-handle-tl { top: -5px; left: -5px; }
+    .canva-handle-tr { top: -5px; right: -5px; }
+    .canva-handle-bl { bottom: -5px; left: -5px; }
+    .canva-handle-br { bottom: -5px; right: -5px; }
+
+    /* Frosted Sheet Backdrop */
+    .sheet-backdrop {
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+    }
+
+    /* Viewport Smooth Width Transitions */
+    .device-viewport {
+      transition: max-width 0.32s cubic-bezier(0.16, 1, 0.3, 1), 
+                  transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                  border-radius 0.3s ease;
+    }
+  </style>
+</head>
+<body class="bg-dot-pattern text-slate-800 font-sans antialiased h-[100dvh] w-screen overflow-hidden flex flex-col justify-between select-none">
+
+  <!-- ============================================================== -->
+  <!-- 1. TOP BAR (Mobile + Desktop Responsive with Device & Zoom) -->
+  <!-- ============================================================== -->
+  <header class="w-full bg-white border-b border-slate-200/90 z-30 shrink-0 select-none shadow-xs transition-all duration-200">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 h-14 flex items-center justify-between gap-2">
+      
+      <!-- Left: Home outline icon + Undo/Redo arrows -->
+      <div class="flex items-center gap-1.5 sm:gap-2.5">
+        <!-- Home Icon -->
+        <button id="btn-back-home" title="Home / Projects" class="text-indigo-600 hover:text-indigo-800 p-2 rounded-xl hover:bg-slate-50 active:scale-95 transition">
+          <i data-lucide="home" class="w-5 h-5 stroke-[2]"></i>
+        </button>
+
+        <div class="h-4 w-[1px] bg-slate-200 hidden sm:block"></div>
+
+        <!-- Undo Icon -->
+        <button id="btn-undo" title="Undo (Ctrl+Z)" disabled class="text-slate-300 disabled:opacity-30 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-50 active:scale-95 transition">
+          <i data-lucide="undo-2" class="w-5 h-5 stroke-[2]"></i>
+        </button>
+
+        <!-- Redo Icon -->
+        <button id="btn-redo" title="Redo (Ctrl+Y)" disabled class="text-slate-300 disabled:opacity-30 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-50 active:scale-95 transition">
+          <i data-lucide="redo-2" class="w-5 h-5 stroke-[2]"></i>
+        </button>
+      </div>
+
+      <!-- Center: Page Selector Pill + Desktop Device Switcher + Zoom -->
+      <div class="flex items-center gap-2 sm:gap-4">
+        <!-- Page Selector Pill -->
+        <div class="relative">
+          <button id="btn-page-dropdown" class="flex items-center gap-2 px-3.5 sm:px-4 py-1.5 bg-[#EEF2FF] hover:bg-[#E0E7FF] text-slate-800 rounded-full border border-[#D5DEFF] text-xs font-semibold tracking-tight shadow-2xs transition active:scale-98">
+            <i data-lucide="layers" class="w-4 h-4 text-indigo-600"></i>
+            <span id="current-page-label">Home (/)</span>
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-500"></i>
+          </button>
+
+          <!-- Page Dropdown Popover -->
+          <div id="page-menu-popover" class="hidden absolute top-full left-1/2 -translate-x-1/2 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 animate-scale-up">
+            <div class="px-3.5 py-1 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Switch Page</div>
+            
+            <button data-page="home" class="page-menu-item w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-800 hover:bg-purple-50 hover:text-ziteo-purple transition">
+              <i data-lucide="home" class="w-4 h-4 text-slate-400"></i>
+              <span>Home (/)</span>
+              <i data-lucide="check" class="page-active-check w-3.5 h-3.5 ml-auto text-ziteo-purple"></i>
+            </button>
+            
+            <button data-page="shop" class="page-menu-item w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-800 hover:bg-purple-50 hover:text-ziteo-purple transition">
+              <i data-lucide="shopping-bag" class="w-4 h-4 text-slate-400"></i>
+              <span>Shop (/shop)</span>
+              <i data-lucide="check" class="page-active-check w-3.5 h-3.5 ml-auto text-ziteo-purple hidden"></i>
+            </button>
+            
+            <button data-page="product-detail" class="page-menu-item w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-800 hover:bg-purple-50 hover:text-ziteo-purple transition">
+              <i data-lucide="sparkles" class="w-4 h-4 text-slate-400"></i>
+              <span>Product Detail (/product)</span>
+              <i data-lucide="check" class="page-active-check w-3.5 h-3.5 ml-auto text-ziteo-purple hidden"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Desktop Segmented Device Switcher (Mobile | Tablet | Desktop) -->
+        <div class="hidden md:flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200/90 shadow-2xs">
+          <button id="dev-btn-mobile" class="px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 bg-white text-ziteo-purple shadow-xs transition" title="Mobile View (390px)">
+            <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
+            <span>Mobile</span>
+          </button>
+          <button id="dev-btn-tablet" class="px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 text-slate-500 hover:text-slate-800 transition" title="Tablet View (768px)">
+            <i data-lucide="tablet" class="w-3.5 h-3.5"></i>
+            <span>Tablet</span>
+          </button>
+          <button id="dev-btn-desktop" class="px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 text-slate-500 hover:text-slate-800 transition" title="Desktop View (1200px)">
+            <i data-lucide="monitor" class="w-3.5 h-3.5"></i>
+            <span>Desktop</span>
+          </button>
+        </div>
+
+        <!-- Desktop Zoom Controls -->
+        <div class="hidden lg:flex items-center bg-slate-100 px-2 py-1 rounded-xl border border-slate-200 text-xs text-slate-600 font-semibold gap-1">
+          <button id="btn-zoom-out" class="p-0.5 hover:text-black active:scale-95"><i data-lucide="minus" class="w-3 h-3"></i></button>
+          <span id="zoom-label" class="text-[11px] font-bold px-1 min-w-[36px] text-center">100%</span>
+          <button id="btn-zoom-in" class="p-0.5 hover:text-black active:scale-95"><i data-lucide="plus" class="w-3 h-3"></i></button>
+        </div>
+      </div>
+
+      <!-- Right: Preview Toggle + Publish Button + Three-line Menu -->
+      <div class="flex items-center gap-2">
+        <!-- Preview Mode Button (Desktop visible) -->
+        <button id="btn-toggle-preview" title="Toggle Preview (P)" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-slate-700 hover:bg-slate-100 text-xs font-bold active:scale-95 transition">
+          <i data-lucide="eye" class="w-4 h-4"></i>
+          <span>Preview</span>
+        </button>
+
+        <!-- Publish Button -->
+        <button id="btn-publish-header" class="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#53389E] hover:bg-purple-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-purple-600/25 active:scale-95 transition">
+          <i data-lucide="send" class="w-3.5 h-3.5"></i>
+          <span>Publish</span>
+        </button>
+
+        <!-- Three-line Hamburger Menu -->
+        <div class="relative">
+          <button id="btn-more-menu" title="Menu" class="text-slate-800 hover:text-slate-950 p-2 rounded-xl hover:bg-slate-100 active:scale-95 transition">
+            <i data-lucide="menu" class="w-5 h-5 stroke-[2]"></i>
+          </button>
+
+          <!-- More Options Popover -->
+          <div id="more-menu-popover" class="hidden absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 animate-scale-up">
+            <div class="px-3.5 py-1 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block md:hidden">Device Mode</div>
+            <div class="px-2.5 py-1 flex items-center gap-1 md:hidden mb-1">
+              <button id="menu-dev-mobile" class="flex-1 py-1 px-1.5 rounded-lg bg-purple-50 text-ziteo-purple text-[11px] font-bold text-center">Mobile</button>
+              <button id="menu-dev-tablet" class="flex-1 py-1 px-1.5 rounded-lg text-slate-600 text-[11px] font-bold text-center hover:bg-slate-100">Tablet</button>
+              <button id="menu-dev-desktop" class="flex-1 py-1 px-1.5 rounded-lg text-slate-600 text-[11px] font-bold text-center hover:bg-slate-100">Desktop</button>
+            </div>
+            
+            <button id="menu-share" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
+              <i data-lucide="share-2" class="w-4 h-4 text-slate-500"></i> Share Site Link
+            </button>
+            <button id="menu-export" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
+              <i data-lucide="download" class="w-4 h-4 text-slate-500"></i> Download Clean HTML
+            </button>
+            <div class="my-1.5 border-t border-slate-100"></div>
+            <button id="menu-reset" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition">
+              <i data-lucide="rotate-ccw" class="w-4 h-4 text-red-500"></i> Reset Template
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ============================================================== -->
+  <!-- 2. MAIN AREA: LIVE INTERACTIVE PREVIEW (Responsive Device Viewport) -->
+  <!-- ============================================================== -->
+  <main id="editor-viewport-container" class="relative flex-1 w-full overflow-hidden flex items-end justify-center px-2 sm:px-6 pt-3 pb-0">
+    
+    <!-- Responsive Canvas Wrapper: Adapts width smoothly between Mobile, Tablet & Desktop -->
+    <div id="canvas-wrapper" class="device-viewport max-w-[420px] w-full bg-white rounded-t-[32px] sm:rounded-[32px] shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden relative" style="height: calc(100vh - 132px); transform-origin: top center;">
+      
+      <!-- Interactive Website Viewport Scrollable -->
+      <div id="website-canvas" class="flex-1 w-full overflow-y-auto overflow-x-hidden scroll-touch no-scrollbar relative focus:outline-none" tabindex="0">
+        <!-- Live dynamic website sections injected here -->
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ============================================================== -->
+  <!-- 3. BOTTOM TOOLBAR (Canva-Style Dock: Context-Sensitive Single Bar) -->
+  <!-- ============================================================== -->
+  <footer id="bottom-bar-wrapper" class="w-full z-30 shrink-0 select-none pb-1 sm:pb-3 pointer-events-none transition-all duration-200">
+    
+    <div class="max-w-xl mx-auto px-3 sm:px-4 pointer-events-auto">
+      
+      <!-- Context Indicator Bar (Active element name and Done button) -->
+      <div id="toolbar-context-indicator" class="hidden px-4 py-1.5 bg-purple-50/95 backdrop-blur-md border border-purple-200/80 rounded-t-2xl flex items-center justify-between text-xs shadow-xs mb-[-1px]">
+        <div class="flex items-center gap-1.5 font-bold text-ziteo-purple">
+          <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+          <span id="selected-element-name">Navbar Selected</span>
+        </div>
+        <button id="btn-deselect" class="text-[11px] font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1 px-2.5 py-0.5 rounded-lg hover:bg-white active:scale-95 transition">
+          <span>Done</span>
+          <i data-lucide="x" class="w-3 h-3"></i>
+        </button>
+      </div>
+
+      <!-- Single Horizontal Toolbar Dock -->
+      <div class="bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] px-3 sm:px-6 py-1.5 flex items-center justify-around sm:gap-8 overflow-x-auto no-scrollbar scroll-touch">
+        
+        <!-- Buttons injected dynamically -->
+        <div id="toolbar-buttons" class="flex items-center gap-2 sm:gap-6 w-full justify-around sm:justify-center">
+          <!-- Rendered based on selection context -->
+        </div>
+
+      </div>
+
+    </div>
+
+  </footer>
+
+  <!-- ============================================================== -->
+  <!-- 4. BOTTOM SHEET / DRAWER (Responsive: Clean Modal on Desktop) -->
+  <!-- ============================================================== -->
+  <div id="bottom-sheet-container" class="fixed inset-0 z-50 pointer-events-none transition-all duration-300 flex flex-col justify-end">
+    <!-- Backdrop Overlay -->
+    <div id="bottom-sheet-backdrop" class="sheet-backdrop absolute inset-0 opacity-0 pointer-events-none transition-opacity duration-300"></div>
+
+    <!-- Drawer / Modal -->
+    <div id="bottom-sheet" class="relative w-full max-w-xl mx-auto bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 sm:mb-4 transform translate-y-full transition-transform duration-300 ease-out pointer-events-auto flex flex-col max-h-[82vh] overflow-hidden">
+      
+      <!-- Drag Handle -->
+      <div id="sheet-drag-handle" class="w-full pt-3 pb-1.5 flex justify-center cursor-grab active:cursor-grabbing touch-none">
+        <div class="w-12 h-1.5 bg-slate-300 hover:bg-slate-400 rounded-full transition"></div>
+      </div>
+
+      <!-- Header -->
+      <div class="px-5 py-2.5 flex items-center justify-between border-b border-slate-100">
+        <div class="flex items-center gap-2.5">
+          <div id="sheet-icon-wrapper" class="w-7 h-7 rounded-lg bg-purple-100 text-ziteo-purple flex items-center justify-center">
+            <i data-lucide="layout-template" id="sheet-header-icon" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 id="sheet-title" class="text-sm font-bold text-slate-800">Choose Template</h3>
+            <p id="sheet-subtitle" class="text-[11px] text-slate-400">Select a design style</p>
+          </div>
+        </div>
+
+        <button id="btn-close-sheet" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-95 flex items-center justify-center text-slate-500 hover:text-slate-700 transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Content -->
+      <div id="sheet-body" class="p-4 sm:p-5 overflow-y-auto no-scrollbar scroll-touch flex-1">
+        <!-- Injected options -->
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- 5. INTERACTIVE CART DRAWER (Live E-Commerce Experience) -->
+  <!-- ============================================================== -->
+  <div id="cart-drawer-container" class="fixed inset-0 z-50 pointer-events-none transition-all duration-300 flex justify-end">
+    <div id="cart-drawer-backdrop" class="sheet-backdrop absolute inset-0 opacity-0 pointer-events-none transition-opacity duration-300"></div>
+    <div id="cart-drawer" class="relative w-full max-w-sm bg-white h-full shadow-2xl border-l border-slate-200 transform translate-x-full transition-transform duration-300 ease-out pointer-events-auto flex flex-col">
+      <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i data-lucide="shopping-bag" class="w-5 h-5 text-ziteo-purple"></i>
+          <h3 class="font-bold text-sm text-slate-900">Your Shopping Bag (<span id="cart-badge-count">2</span>)</h3>
+        </div>
+        <button id="btn-close-cart" class="p-1 rounded-lg text-slate-400 hover:text-slate-700">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div id="cart-items-list" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+        <!-- Cart Items -->
+      </div>
+      <div class="p-4 border-t border-slate-100 bg-slate-50">
+        <div class="flex items-center justify-between mb-3 text-xs">
+          <span class="text-slate-500 font-medium">Subtotal</span>
+          <span id="cart-subtotal" class="font-extrabold text-sm text-slate-900">$278.00</span>
+        </div>
+        <button id="btn-checkout" class="w-full py-3 bg-[#53389E] hover:bg-purple-800 text-white font-bold text-xs rounded-xl shadow-md transition active:scale-98">
+          Proceed to Checkout
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- 6. LIVE SEARCH MODAL (Interactive Store Search) -->
+  <!-- ============================================================== -->
+  <div id="search-modal" class="fixed inset-0 z-50 hidden flex items-start justify-center pt-20 px-4">
+    <div id="search-modal-backdrop" class="sheet-backdrop absolute inset-0 opacity-100"></div>
+    <div class="relative bg-white rounded-2xl max-w-lg w-full p-4 shadow-2xl z-10 animate-scale-up border border-slate-100">
+      <div class="flex items-center gap-2 pb-3 border-b border-slate-100">
+        <i data-lucide="search" class="w-5 h-5 text-slate-400"></i>
+        <input type="text" id="store-search-input" placeholder="Search shoes, apparel, collections..." class="w-full text-sm font-medium focus:outline-none placeholder-slate-400">
+        <button id="btn-close-search" class="p-1 rounded-lg text-slate-400 hover:text-slate-700">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div id="search-results-box" class="py-3 text-xs text-slate-500">
+        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Suggested Searches</span>
+        <div class="flex flex-wrap gap-1.5">
+          <button class="px-3 py-1 bg-slate-100 hover:bg-purple-50 hover:text-ziteo-purple rounded-full text-xs font-semibold">Air Retro Court</button>
+          <button class="px-3 py-1 bg-slate-100 hover:bg-purple-50 hover:text-ziteo-purple rounded-full text-xs font-semibold">Active Apparel Fleece</button>
+          <button class="px-3 py-1 bg-slate-100 hover:bg-purple-50 hover:text-ziteo-purple rounded-full text-xs font-semibold">Wool Beanie & Denim</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- 7. PUBLISH & SHARE MODAL -->
+  <!-- ============================================================== -->
+  <div id="publish-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="sheet-backdrop absolute inset-0 opacity-100" id="publish-modal-backdrop"></div>
+    <div class="relative bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl z-10 animate-scale-up text-center border border-slate-100">
+      
+      <div class="w-16 h-16 bg-[#53389E] rounded-2xl mx-auto flex items-center justify-center shadow-lg shadow-purple-500/30 text-white mb-4">
+        <i data-lucide="sparkles" class="w-8 h-8 animate-pulse"></i>
+      </div>
+
+      <h3 class="text-lg font-bold text-slate-900 mb-1">Your Website is Live!</h3>
+      <p class="text-xs text-slate-500 mb-4">Published to high-speed global edge network. Fully responsive for Mobile, Tablet, and Desktop.</p>
+
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex items-center justify-between mb-4">
+        <span class="text-xs font-mono text-slate-600 truncate mr-2">https://ziteo.site/collections</span>
+        <button id="btn-copy-link" class="shrink-0 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold px-2.5 py-1 rounded-lg active:scale-95 transition flex items-center gap-1">
+          <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+          <span id="copy-text">Copy</span>
+        </button>
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <button id="btn-open-live-site" class="w-full py-2.5 bg-ziteo-purple hover:bg-purple-800 text-white font-bold text-xs rounded-xl shadow-md active:scale-98 transition flex items-center justify-center gap-1.5">
+          <i data-lucide="external-link" class="w-4 h-4"></i>
+          <span>Open Live Site Preview</span>
+        </button>
+        <button id="btn-close-publish" class="w-full py-2 text-slate-500 hover:text-slate-800 text-xs font-semibold transition">
+          Back to Editor
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- 8. TOAST NOTIFICATION CONTAINER -->
+  <!-- ============================================================== -->
+  <div id="toast-container" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center gap-2"></div>
+
+  <!-- ============================================================== -->
+  <!-- JAVASCRIPT APPLICATION CORE -->
+  <!-- ============================================================== -->
+  <script>
+    /**
+     * ZITEO Comprehensive Website Editor
+     */
+    const App = {
+      currentPage: 'home',
+      selectedElementId: null,
+      isPreviewMode: false,
+      deviceMode: 'mobile',
+      zoomLevel: 100,
+
+      history: [],
+      historyIndex: -1,
+      maxHistory: 30,
+
+      // Touch drag state
+      touchStartY: 0,
+      touchCurrentY: 0,
+      isDraggingSheet: false,
+
+      // Live Cart State
+      cart: [
+        { id: 'item1', name: 'Air Retro Court Sneaker', price: 149, qty: 1, img: 'https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=200&q=80' },
+        { id: 'item2', name: 'Active Apparel Hoodie', price: 129, qty: 1, img: 'https://images.unsplash.com/photo-1578587018452-892bacefd3f2?auto=format&fit=crop&w=200&q=80' }
+      ],
+
+      // Application State Models
+      data: {
+        pages: {
+          'home': {
+            title: 'Home (/)',
+            background: '#ffffff',
+            sections: [
+              {
+                id: 'navbar',
+                name: 'Navbar',
+                template: 'ziteo-standard', // 'ziteo-standard', 'ziteo-left-brand', 'ziteo-floating-pill', 'ziteo-dark-contrast'
+                background: '#ffffff',
+                textColor: '#0f172a',
+                logoText: 'ZITEO',
+                cartCount: 2
+              },
+              {
+                id: 'hero',
+                name: 'Hero Slider',
+                template: 'sneaker-slider', // 'sneaker-slider', 'sneaker-split', 'sneaker-spotlight'
+                activeSlide: 1,
+                totalSlides: 4,
+                imageUrl: 'https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=1200&q=80',
+                slides: [
+                  'https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=1200&q=80',
+                  'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1200&q=80',
+                  'https://images.unsplash.com/photo-1515955656352-a1fa3ffcd111?auto=format&fit=crop&w=1200&q=80',
+                  'https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=1200&q=80'
+                ],
+                background: '#ffffff'
+              },
+              {
+                id: 'collections-header',
+                name: 'Collections Header',
+                template: 'standard-heading',
+                badgeText: 'EXPLORE COLLECTIONS',
+                badgeColor: '#53389E',
+                title: 'Built For Every Routine',
+                subtitle: 'Filter by activity, tech specifications, or everyday lifestyle essentials.',
+                background: '#ffffff',
+                textColor: '#0f172a'
+              },
+              {
+                id: 'collections-grid',
+                name: 'Collections Grid',
+                template: 'two-column-cards',
+                background: '#ffffff',
+                items: [
+                  {
+                    id: 'c1',
+                    title: 'Active Apparel',
+                    tag: 'Performance',
+                    price: '$89',
+                    imageUrl: 'https://images.unsplash.com/photo-1578587018452-892bacefd3f2?auto=format&fit=crop&w=600&q=80'
+                  },
+                  {
+                    id: 'c2',
+                    title: 'Lifestyle Essentials',
+                    tag: 'Seasonal',
+                    price: '$65',
+                    imageUrl: 'https://images.unsplash.com/photo-1544441893-675973e31985?auto=format&fit=crop&w=600&q=80'
+                  },
+                  {
+                    id: 'c3',
+                    title: 'Court Performance Sneaker',
+                    tag: 'Trending',
+                    price: '$149',
+                    imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80'
+                  },
+                  {
+                    id: 'c4',
+                    title: 'Everyday Leather Carry',
+                    tag: 'Limited',
+                    price: '$110',
+                    imageUrl: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=600&q=80'
+                  }
+                ]
+              },
+              {
+                id: 'footer',
+                name: 'Footer',
+                template: 'minimal-clean',
+                background: '#f8fafc',
+                textColor: '#64748b',
+                brandText: 'ZITEO',
+                copyright: '© 2026 ZITEO Inc. All rights reserved.'
+              }
+            ]
+          },
+
+          'shop': {
+            title: 'Shop (/shop)',
+            background: '#ffffff',
+            sections: [
+              {
+                id: 'navbar',
+                name: 'Navbar',
+                template: 'ziteo-standard',
+                background: '#ffffff',
+                textColor: '#0f172a',
+                logoText: 'ZITEO',
+                cartCount: 2
+              },
+              {
+                id: 'shop-catalog',
+                name: 'Catalog Showcase',
+                template: 'store-grid',
+                title: 'All Essentials',
+                subtitle: 'Precision engineered footwear and daily modular apparel.',
+                filter: 'All',
+                sort: 'featured',
+                products: [
+                  { id: 'p1', name: 'Air Retro Court Sneaker', price: 149, rating: 4.9, reviews: 142, img: 'https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=600&q=80' },
+                  { id: 'p2', name: 'Velocity Cloud Runner', price: 165, rating: 4.8, reviews: 88, img: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80' },
+                  { id: 'p3', name: 'Active Weatherproof Fleece', price: 129, rating: 5.0, reviews: 64, img: 'https://images.unsplash.com/photo-1578587018452-892bacefd3f2?auto=format&fit=crop&w=600&q=80' },
+                  { id: 'p4', name: 'Merino Beanie & Denim Pack', price: 95, rating: 4.7, reviews: 31, img: 'https://images.unsplash.com/photo-1544441893-675973e31985?auto=format&fit=crop&w=600&q=80' },
+                  { id: 'p5', name: 'Matte Leather Utility Bag', price: 110, rating: 4.9, reviews: 52, img: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=600&q=80' },
+                  { id: 'p6', name: 'Court Edition Sport High', price: 175, rating: 4.8, reviews: 119, img: 'https://images.unsplash.com/photo-1515955656352-a1fa3ffcd111?auto=format&fit=crop&w=600&q=80' }
+                ]
+              },
+              {
+                id: 'footer',
+                name: 'Footer',
+                template: 'minimal-clean',
+                background: '#f8fafc',
+                textColor: '#64748b',
+                brandText: 'ZITEO',
+                copyright: '© 2026 ZITEO Inc. All rights reserved.'
+              }
+            ]
+          },
+
+          'product-detail': {
+            title: 'Product Detail (/product)',
+            background: '#ffffff',
+            sections: [
+              {
+                id: 'navbar',
+                name: 'Navbar',
+                template: 'ziteo-standard',
+                background: '#ffffff',
+                textColor: '#0f172a',
+                logoText: 'ZITEO',
+                cartCount: 2
+              },
+              {
+                id: 'product-viewer',
+                name: 'Product Details Viewer',
+                template: 'full-product-page',
+                productName: 'Air Retro Court Sneaker',
+                price: 149.00,
+                rating: '4.9 (142 reviews)',
+                description: 'Crafted with premium full-grain leather, responsive cloud-foam cushioning, and high-traction rubber outsoles for daily versatile movement.',
+                selectedColor: '#53389E',
+                colors: ['#53389E', '#0f172a', '#DC2626', '#E2E8F0'],
+                selectedSize: 'US 10',
+                sizes: ['US 8', 'US 9', 'US 10', 'US 11', 'US 12'],
+                activeImage: 'https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=1200&q=80',
+                gallery: [
+                  'https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=1200&q=80',
+                  'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1200&q=80',
+                  'https://images.unsplash.com/photo-1515955656352-a1fa3ffcd111?auto=format&fit=crop&w=1200&q=80'
+                ]
+              },
+              {
+                id: 'footer',
+                name: 'Footer',
+                template: 'minimal-clean',
+                background: '#f8fafc',
+                textColor: '#64748b',
+                brandText: 'ZITEO',
+                copyright: '© 2026 ZITEO Inc. All rights reserved.'
+              }
+            ]
+          }
+        }
+      },
+
+      /**
+       * Initialization
+       */
+      init() {
+        this.saveHistoryState();
+        this.renderCanvas();
+        this.renderBottomToolbar();
+        this.renderCartDrawer();
+        this.bindEvents();
+        this.bindSheetDragGesture();
+        lucide.createIcons();
+      },
+
+      /**
+       * Device Mode Switcher (Mobile | Tablet | Desktop)
+       */
+      setDeviceMode(mode) {
+        this.deviceMode = mode;
+        const wrapper = document.getElementById('canvas-wrapper');
+        if (!wrapper) return;
+
+        ['mobile', 'tablet', 'desktop'].forEach(m => {
+          const btn = document.getElementById(`dev-btn-${m}`);
+          const menuBtn = document.getElementById(`menu-dev-${m}`);
+          if (m === mode) {
+            btn?.classList.add('bg-white', 'text-ziteo-purple', 'shadow-xs');
+            btn?.classList.remove('text-slate-500');
+            menuBtn?.classList.add('bg-purple-50', 'text-ziteo-purple');
+            menuBtn?.classList.remove('text-slate-600');
+          } else {
+            btn?.classList.remove('bg-white', 'text-ziteo-purple', 'shadow-xs');
+            btn?.classList.add('text-slate-500');
+            menuBtn?.classList.remove('bg-purple-50', 'text-ziteo-purple');
+            menuBtn?.classList.add('text-slate-600');
+          }
+        });
+
+        if (mode === 'mobile') {
+          wrapper.className = 'device-viewport max-w-[420px] w-full bg-white rounded-t-[32px] sm:rounded-[32px] shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden relative';
+          this.showToast('Switched to Mobile View (390px)');
+        } else if (mode === 'tablet') {
+          wrapper.className = 'device-viewport max-w-[768px] w-full bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden relative';
+          this.showToast('Switched to Tablet View (768px)');
+        } else if (mode === 'desktop') {
+          wrapper.className = 'device-viewport max-w-[1240px] w-full bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden relative';
+          this.showToast('Switched to Desktop View (1200px)');
+        }
+
+        this.renderCanvas();
+      },
+
+      setZoom(delta) {
+        if (delta === 0) this.zoomLevel = 100;
+        else this.zoomLevel = Math.max(50, Math.min(150, this.zoomLevel + delta));
+        
+        const label = document.getElementById('zoom-label');
+        if (label) label.textContent = `${this.zoomLevel}%`;
+
+        const wrapper = document.getElementById('canvas-wrapper');
+        if (wrapper) {
+          wrapper.style.transform = `scale(${this.zoomLevel / 100})`;
+        }
+      },
+
+      /**
+       * History (Undo/Redo) Engine
+       */
+      saveHistoryState() {
+        if (this.historyIndex < this.history.length - 1) {
+          this.history = this.history.slice(0, this.historyIndex + 1);
+        }
+        const snapshot = JSON.parse(JSON.stringify({
+          currentPage: this.currentPage,
+          selectedElementId: this.selectedElementId,
+          deviceMode: this.deviceMode,
+          cart: this.cart,
+          data: this.data
+        }));
+        this.history.push(snapshot);
+        if (this.history.length > this.maxHistory) {
+          this.history.shift();
+        } else {
+          this.historyIndex++;
+        }
+        this.updateUndoRedoUI();
+      },
+
+      undo() {
+        if (this.historyIndex > 0) {
+          this.historyIndex--;
+          const state = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
+          this.data = state.data;
+          this.currentPage = state.currentPage;
+          this.selectedElementId = state.selectedElementId;
+          this.cart = state.cart || this.cart;
+          this.updatePageSelectorUI();
+          this.renderCanvas();
+          this.renderBottomToolbar();
+          this.renderCartDrawer();
+          this.updateUndoRedoUI();
+          this.showToast('Undo performed');
+        }
+      },
+
+      redo() {
+        if (this.historyIndex < this.history.length - 1) {
+          this.historyIndex++;
+          const state = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
+          this.data = state.data;
+          this.currentPage = state.currentPage;
+          this.selectedElementId = state.selectedElementId;
+          this.cart = state.cart || this.cart;
+          this.updatePageSelectorUI();
+          this.renderCanvas();
+          this.renderBottomToolbar();
+          this.renderCartDrawer();
+          this.updateUndoRedoUI();
+          this.showToast('Redo performed');
+        }
+      },
+
+      updateUndoRedoUI() {
+        const btnUndo = document.getElementById('btn-undo');
+        const btnRedo = document.getElementById('btn-redo');
+        if (btnUndo) btnUndo.disabled = this.historyIndex <= 0;
+        if (btnRedo) btnRedo.disabled = this.historyIndex >= this.history.length - 1;
+      },
+
+      /**
+       * Page Switching
+       */
+      switchPage(pageId) {
+        if (this.data.pages[pageId]) {
+          this.currentPage = pageId;
+          this.selectedElementId = null;
+          this.closePageMenu();
+          this.closeBottomSheet();
+          this.updatePageSelectorUI();
+          this.renderCanvas();
+          this.renderBottomToolbar();
+          this.saveHistoryState();
+          this.showToast(`Switched to ${this.data.pages[pageId].title}`);
+        }
+      },
+
+      updatePageSelectorUI() {
+        const label = document.getElementById('current-page-label');
+        if (label) label.textContent = this.data.pages[this.currentPage].title;
+
+        document.querySelectorAll('.page-menu-item').forEach(btn => {
+          const check = btn.querySelector('.page-active-check');
+          if (btn.getAttribute('data-page') === this.currentPage) {
+            check?.classList.remove('hidden');
+          } else {
+            check?.classList.add('hidden');
+          }
+        });
+      },
+
+      /**
+       * Selection Engine & Floating Controls
+       */
+      selectElement(id) {
+        if (this.isPreviewMode) return;
+        
+        if (navigator.vibrate) navigator.vibrate(10);
+        this.selectedElementId = id;
+        this.renderCanvasHighlights();
+        this.renderBottomToolbar();
+        this.closeBottomSheet();
+      },
+
+      deselectElement() {
+        this.selectedElementId = null;
+        this.renderCanvasHighlights();
+        this.renderBottomToolbar();
+        this.closeBottomSheet();
+      },
+
+      renderCanvasHighlights() {
+        const canvas = document.getElementById('website-canvas');
+        if (!canvas) return;
+
+        canvas.querySelectorAll('.canvas-section').forEach(sec => {
+          sec.classList.remove('canva-selected-section');
+          sec.querySelectorAll('.canva-handle, .canva-badge-pill').forEach(h => h.remove());
+        });
+
+        if (this.selectedElementId) {
+          const selectedEl = canvas.querySelector(`[data-section-id="${this.selectedElementId}"]`);
+          if (selectedEl) {
+            selectedEl.classList.add('canva-selected-section');
+            const secData = this.getSectionData(this.selectedElementId);
+            
+            // Add floating badge pill with section name + Move Up/Down + Delete
+            const badge = document.createElement('div');
+            badge.className = 'canva-badge-pill';
+            badge.innerHTML = `
+              <span>✦ ${secData ? secData.name : 'Section'}</span>
+              <button onclick="event.stopPropagation(); App.moveSection('${this.selectedElementId}', -1)" title="Move Up" class="hover:text-amber-300 p-0.5"><i data-lucide="chevron-up" class="w-3 h-3"></i></button>
+              <button onclick="event.stopPropagation(); App.moveSection('${this.selectedElementId}', 1)" title="Move Down" class="hover:text-amber-300 p-0.5"><i data-lucide="chevron-down" class="w-3 h-3"></i></button>
+              <button onclick="event.stopPropagation(); App.deleteSection('${this.selectedElementId}')" title="Delete Section" class="hover:text-red-300 p-0.5"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+            `;
+            selectedEl.appendChild(badge);
+
+            ['tl', 'tr', 'bl', 'br'].forEach(pos => {
+              const handle = document.createElement('div');
+              handle.className = `canva-handle canva-handle-${pos}`;
+              selectedEl.appendChild(handle);
+            });
+            lucide.createIcons();
+          }
+        }
+      },
+
+      moveSection(sectionId, direction) {
+        const page = this.data.pages[this.currentPage];
+        const index = page.sections.findIndex(s => s.id === sectionId);
+        if (index < 0) return;
+        const newIndex = index + direction;
+        if (newIndex >= 0 && newIndex < page.sections.length) {
+          const temp = page.sections[index];
+          page.sections[index] = page.sections[newIndex];
+          page.sections[newIndex] = temp;
+          this.saveHistoryState();
+          this.renderCanvas();
+          this.showToast('Section reordered');
+        }
+      },
+
+      deleteSection(sectionId) {
+        if (sectionId === 'navbar') {
+          this.showToast('Navbar cannot be removed');
+          return;
+        }
+        const page = this.data.pages[this.currentPage];
+        page.sections = page.sections.filter(s => s.id !== sectionId);
+        this.deselectElement();
+        this.saveHistoryState();
+        this.renderCanvas();
+        this.showToast('Section deleted');
+      },
+
+      getSectionData(sectionId) {
+        const page = this.data.pages[this.currentPage];
+        if (!page) return null;
+        return page.sections.find(s => s.id === sectionId);
+      },
+
+      /**
+       * ==============================================================
+       * 2. LIVE INTERACTIVE WEBSITE CANVAS RENDERING
+       * ==============================================================
+       */
+      renderCanvas() {
+        const canvas = document.getElementById('website-canvas');
+        if (!canvas) return;
+
+        const page = this.data.pages[this.currentPage];
+        let html = '';
+
+        page.sections.forEach(sec => {
+          html += this.renderSectionHTML(sec);
+        });
+
+        canvas.innerHTML = html;
+        this.renderCanvasHighlights();
+        lucide.createIcons();
+
+        // Bind section select
+        canvas.querySelectorAll('.canvas-section').forEach(secEl => {
+          secEl.addEventListener('click', (e) => {
+            if (this.isPreviewMode) return;
+            e.stopPropagation();
+            const id = secEl.getAttribute('data-section-id');
+            this.selectElement(id);
+          });
+        });
+
+        // Tapping blank canvas deselects
+        canvas.onclick = (e) => {
+          if (e.target === canvas) {
+            this.deselectElement();
+          }
+        };
+      },
+
+      renderSectionHTML(sec) {
+        const isSelected = this.selectedElementId === sec.id;
+        const baseClass = `canvas-section relative w-full cursor-pointer transition-all duration-150 ${isSelected ? 'canva-selected-section' : 'hover:outline hover:outline-1 hover:outline-purple-300'}`;
+
+        switch (sec.id) {
+          case 'navbar':
+            return this.renderNavbarTemplate(sec, baseClass);
+          case 'hero':
+            return this.renderHeroTemplate(sec, baseClass);
+          case 'collections-header':
+            return this.renderCollectionsHeaderTemplate(sec, baseClass);
+          case 'collections-grid':
+            return this.renderCollectionsGridTemplate(sec, baseClass);
+          case 'shop-catalog':
+            return this.renderShopCatalogTemplate(sec, baseClass);
+          case 'product-viewer':
+            return this.renderProductViewerTemplate(sec, baseClass);
+          case 'footer':
+            return this.renderFooterTemplate(sec, baseClass);
+          default:
+            return `<div data-section-id="${sec.id}" class="${baseClass} p-6 bg-slate-50 text-center font-bold text-xs text-slate-500">${sec.name}</div>`;
+        }
+      },
+
+      // Section: Navbar (Adapts to Mobile vs Desktop + Interactive Triggers)
+      renderNavbarTemplate(sec, baseClass) {
+        const bg = sec.background;
+        const color = sec.textColor;
+        const logo = sec.logoText || 'ZITEO';
+        const cartCount = this.cart.reduce((sum, item) => sum + item.qty, 0);
+        const isDesktop = this.deviceMode === 'desktop';
+
+        if (isDesktop) {
+          return `
+            <nav data-section-id="${sec.id}" class="${baseClass} px-8 py-4 flex items-center justify-between border-b border-slate-100 bg-white" style="background: ${bg}; color: ${color};">
+              <div class="flex items-center gap-3 cursor-pointer" onclick="event.stopPropagation(); App.switchPage('home')">
+                <div class="w-8 h-8 rounded-xl bg-[#53389E] flex items-center justify-center text-white font-extrabold text-sm shadow-xs">
+                  ${logo.charAt(0)}
+                </div>
+                <span class="font-extrabold tracking-wider text-xl text-slate-900 font-sans">${logo}</span>
+              </div>
+
+              <div class="flex items-center gap-8 text-sm font-semibold text-slate-700">
+                <span onclick="event.stopPropagation(); App.switchPage('home')" class="hover:text-ziteo-purple cursor-pointer transition ${this.currentPage === 'home' ? 'text-ziteo-purple font-bold' : ''}">Collections</span>
+                <span onclick="event.stopPropagation(); App.switchPage('shop')" class="hover:text-ziteo-purple cursor-pointer transition ${this.currentPage === 'shop' ? 'text-ziteo-purple font-bold' : ''}">Footwear</span>
+                <span onclick="event.stopPropagation(); App.switchPage('shop')" class="hover:text-ziteo-purple cursor-pointer transition">Apparel</span>
+                <span onclick="event.stopPropagation(); App.switchPage('product-detail')" class="hover:text-ziteo-purple cursor-pointer transition ${this.currentPage === 'product-detail' ? 'text-ziteo-purple font-bold' : ''}">Product Showcase</span>
+              </div>
+
+              <div class="flex items-center gap-5 text-slate-800">
+                <div onclick="event.stopPropagation(); App.openSearchModal()" class="flex items-center gap-2 bg-slate-100 hover:bg-slate-200/80 px-3 py-1.5 rounded-full border border-slate-200/80 cursor-pointer transition">
+                  <i data-lucide="search" class="w-4 h-4 text-slate-400"></i>
+                  <span class="text-xs text-slate-400 pr-4">Search essentials...</span>
+                </div>
+                <button onclick="event.stopPropagation(); App.openCartDrawer()" class="relative hover:text-black p-1 transition" title="Shopping Bag">
+                  <i data-lucide="shopping-bag" class="w-5 h-5 stroke-[1.75]"></i>
+                  <span class="absolute -top-1 -right-1.5 w-4 h-4 rounded-full bg-[#53389E] text-white text-[10px] font-bold flex items-center justify-center">
+                    ${cartCount}
+                  </span>
+                </button>
+              </div>
+            </nav>
+          `;
+        }
+
+        // Mobile Standard Header matching screenshot with real triggers
+        return `
+          <nav data-section-id="${sec.id}" class="${baseClass} px-4 py-3.5 flex items-center justify-between border-b border-slate-100" style="background: ${bg}; color: ${color};">
+            <button onclick="event.stopPropagation(); App.openSearchModal()" class="p-1 text-slate-800 hover:text-black">
+              <i data-lucide="menu" class="w-5 h-5 stroke-[2]"></i>
+            </button>
+            <div class="flex items-center gap-2 cursor-pointer" onclick="event.stopPropagation(); App.switchPage('home')">
+              <div class="w-6 h-6 rounded-lg bg-[#53389E] flex items-center justify-center text-white font-extrabold text-xs shadow-xs">
+                ${logo.charAt(0)}
+              </div>
+              <span class="font-extrabold tracking-wider text-base text-slate-900 font-sans">${logo}</span>
+            </div>
+            <div class="flex items-center gap-3.5 text-slate-800">
+              <button onclick="event.stopPropagation(); App.openSearchModal()" class="hover:text-black p-1">
+                <i data-lucide="search" class="w-5 h-5 stroke-[2]"></i>
+              </button>
+              <button onclick="event.stopPropagation(); App.openCartDrawer()" class="relative hover:text-black p-1">
+                <i data-lucide="shopping-bag" class="w-5 h-5 stroke-[2]"></i>
+                <span class="absolute -top-1.5 -right-2 w-4 h-4 rounded-full bg-[#53389E] text-white text-[10px] font-bold flex items-center justify-center">
+                  ${cartCount}
+                </span>
+              </button>
+            </div>
+          </nav>
+        `;
+      },
+
+      // Section: Hero with Fully Interactive Pagination Slider
+      renderHeroTemplate(sec, baseClass) {
+        const bg = sec.background;
+        const isDesktop = this.deviceMode === 'desktop';
+        const activeIdx = (sec.activeSlide || 1) - 1;
+        const slides = sec.slides || [sec.imageUrl];
+        const currentImg = slides[activeIdx] || sec.imageUrl;
+
+        if (isDesktop) {
+          return `
+            <section data-section-id="${sec.id}" class="${baseClass} px-8 pt-8 pb-6" style="background: ${bg};">
+              <div class="relative w-full h-[400px] rounded-3xl overflow-hidden shadow-sm bg-gradient-to-r from-slate-900 to-slate-950 flex items-center">
+                <div class="w-1/2 p-10 z-10 text-white flex flex-col justify-center">
+                  <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur border border-white/20 text-xs font-bold text-purple-300 w-max mb-4">
+                    ✨ 2026 Collection Drop
+                  </div>
+                  <h1 class="text-4xl font-black tracking-tight leading-tight mb-3">
+                    Built For Every Routine
+                  </h1>
+                  <p class="text-sm text-slate-300 leading-relaxed mb-6 max-w-md font-normal">
+                    Precision engineered with responsive cloud cushioning and breathable polymers for all-day streetwear comfort.
+                  </p>
+                  <div class="flex items-center gap-3">
+                    <button onclick="event.stopPropagation(); App.switchPage('shop')" class="px-6 py-3 bg-[#53389E] hover:bg-purple-700 text-white font-bold text-sm rounded-xl shadow-lg shadow-purple-600/30 transition active:scale-95">
+                      Explore Footwear
+                    </button>
+                    <button onclick="event.stopPropagation(); App.switchPage('product-detail')" class="px-5 py-3 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold text-sm rounded-xl transition">
+                      View Lookbook
+                    </button>
+                  </div>
+                </div>
+                <div class="w-1/2 h-full relative">
+                  <img src="${currentImg}" alt="Sneaker Showcase" class="w-full h-full object-cover object-center animate-fade-in">
+                  <!-- Pagination pill slider -->
+                  <div class="absolute bottom-4 right-8 bg-black/60 backdrop-blur-md px-3.5 py-1.5 rounded-full flex items-center gap-2 shadow-sm z-20">
+                    ${slides.map((_, i) => `
+                      <button onclick="event.stopPropagation(); App.setHeroSlide(${i + 1})" class="transition-all duration-200 ${i === activeIdx ? 'w-6 h-1.5 bg-white rounded-full' : 'w-1.5 h-1.5 bg-white/50 hover:bg-white/80 rounded-full'}"></button>
+                    `).join('')}
+                  </div>
+                </div>
+              </div>
+            </section>
+          `;
+        }
+
+        // Mobile Interactive Hero Card
+        return `
+          <section data-section-id="${sec.id}" class="${baseClass} px-4 pt-5 pb-3" style="background: ${bg};">
+            <div class="relative w-full h-56 sm:h-72 rounded-[24px] overflow-hidden shadow-sm bg-slate-900 group">
+              <img src="${currentImg}" alt="Sneaker Showcase" class="w-full h-full object-cover object-center animate-fade-in transition duration-300">
+              
+              <!-- Interactive Pagination pill slider: • [===] • • -->
+              <div class="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm z-20">
+                ${slides.map((_, i) => `
+                  <button onclick="event.stopPropagation(); App.setHeroSlide(${i + 1})" class="transition-all duration-200 ${i === activeIdx ? 'w-5 h-1.5 bg-white rounded-full' : 'w-1.5 h-1.5 bg-white/50 hover:bg-white/80 rounded-full'}" title="Slide ${i+1}"></button>
+                `).join('')}
+              </div>
+            </div>
+          </section>
+        `;
+      },
+
+      setHeroSlide(slideNum) {
+        const hero = this.getSectionData('hero');
+        if (hero) {
+          hero.activeSlide = slideNum;
+          if (hero.slides && hero.slides[slideNum - 1]) {
+            hero.imageUrl = hero.slides[slideNum - 1];
+          }
+          this.renderCanvas();
+        }
+      },
+
+      // Section: Collections Header (Responsive)
+      renderCollectionsHeaderTemplate(sec, baseClass) {
+        const bg = sec.background;
+        const color = sec.textColor;
+        const isDesktop = this.deviceMode === 'desktop';
+
+        if (isDesktop) {
+          return `
+            <section data-section-id="${sec.id}" class="${baseClass} px-8 pt-8 pb-4 flex items-end justify-between" style="background: ${bg}; color: ${color};">
+              <div>
+                <span class="text-xs font-bold tracking-wider uppercase block mb-1.5" style="color: ${sec.badgeColor};">
+                  ${sec.badgeText}
+                </span>
+                <h2 class="text-3xl font-extrabold tracking-tight text-slate-900 leading-snug">
+                  ${sec.title}
+                </h2>
+                <p class="text-sm text-slate-500 leading-relaxed font-normal mt-1 max-w-lg">
+                  ${sec.subtitle}
+                </p>
+              </div>
+
+              <!-- Category filter pills on Desktop -->
+              <div class="flex items-center gap-2">
+                <button onclick="event.stopPropagation(); App.switchPage('shop')" class="px-4 py-2 bg-slate-900 text-white rounded-full text-xs font-bold shadow-xs">All Items</button>
+                <button onclick="event.stopPropagation(); App.switchPage('shop')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full text-xs font-bold transition">Footwear</button>
+                <button onclick="event.stopPropagation(); App.switchPage('shop')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full text-xs font-bold transition">Apparel</button>
+                <button onclick="event.stopPropagation(); App.switchPage('shop')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full text-xs font-bold transition">Accessories</button>
+              </div>
+            </section>
+          `;
+        }
+
+        // Mobile / Tablet Header
+        return `
+          <section data-section-id="${sec.id}" class="${baseClass} px-4 pt-5 pb-3" style="background: ${bg}; color: ${color};">
+            <span class="text-[11px] font-bold tracking-wider uppercase block mb-1" style="color: ${sec.badgeColor};">
+              ${sec.badgeText}
+            </span>
+            <h2 class="text-xl font-bold tracking-tight text-slate-900 leading-snug mb-1.5">
+              ${sec.title}
+            </h2>
+            <p class="text-xs text-slate-500 leading-relaxed font-normal">
+              ${sec.subtitle}
+            </p>
+          </section>
+        `;
+      },
+
+      // Section: Collections Grid
+      renderCollectionsGridTemplate(sec, baseClass) {
+        const bg = sec.background;
+        const isDesktop = this.deviceMode === 'desktop';
+
+        if (isDesktop) {
+          return `
+            <section data-section-id="${sec.id}" class="${baseClass} px-8 pt-2 pb-10" style="background: ${bg};">
+              <div class="grid grid-cols-4 gap-5">
+                ${sec.items.map(item => `
+                  <div onclick="event.stopPropagation(); App.switchPage('product-detail')" class="group relative rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/80 shadow-xs flex flex-col hover:shadow-lg transition duration-300 cursor-pointer">
+                    <div class="relative h-60 w-full overflow-hidden">
+                      <img src="${item.imageUrl}" alt="${item.title}" class="w-full h-full object-cover object-center group-hover:scale-105 transition duration-500">
+                      <span class="absolute top-3 left-3 px-2.5 py-1 bg-white/90 backdrop-blur rounded-full text-[10px] font-bold text-slate-800 shadow-xs">
+                        ${item.tag || 'Trending'}
+                      </span>
+                    </div>
+                    <div class="p-3.5 bg-white flex items-center justify-between">
+                      <div>
+                        <h4 class="text-xs font-bold text-slate-800">${item.title}</h4>
+                        <span class="text-[11px] text-slate-500 font-medium">${item.price || '$89'}</span>
+                      </div>
+                      <i data-lucide="arrow-up-right" class="w-4 h-4 text-slate-400 group-hover:text-ziteo-purple transition"></i>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </section>
+          `;
+        }
+
+        // Mobile / Tablet 2-Column Grid (Screenshot Match)
+        return `
+          <section data-section-id="${sec.id}" class="${baseClass} px-4 pt-1 pb-6" style="background: ${bg};">
+            <div class="grid grid-cols-2 gap-3">
+              ${sec.items.slice(0, 2).map(item => `
+                <div onclick="event.stopPropagation(); App.switchPage('product-detail')" class="relative h-44 sm:h-52 rounded-[22px] overflow-hidden shadow-xs bg-slate-100 group cursor-pointer">
+                  <img src="${item.imageUrl}" alt="${item.title}" class="w-full h-full object-cover object-center group-hover:scale-105 transition duration-500">
+                </div>
+              `).join('')}
+            </div>
+          </section>
+        `;
+      },
+
+      // Section: Shop Page Dedicated Catalog
+      renderShopCatalogTemplate(sec, baseClass) {
+        const isDesktop = this.deviceMode === 'desktop';
+        const cols = isDesktop ? 'grid-cols-3' : 'grid-cols-2';
+
+        return `
+          <section data-section-id="${sec.id}" class="${baseClass} px-4 sm:px-8 py-6">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h2 class="text-xl sm:text-2xl font-black text-slate-900">${sec.title}</h2>
+                <p class="text-xs text-slate-500">${sec.subtitle}</p>
+              </div>
+              <div class="flex items-center gap-1.5 text-xs text-slate-600 font-semibold bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
+                <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>
+                <span>Filter & Sort</span>
+              </div>
+            </div>
+
+            <div class="grid ${cols} gap-3 sm:gap-5">
+              ${sec.products.map(p => `
+                <div class="bg-white rounded-2xl p-3 border border-slate-100 shadow-xs hover:border-purple-200 transition group flex flex-col justify-between">
+                  <div>
+                    <div class="relative w-full h-36 sm:h-48 rounded-xl overflow-hidden bg-slate-50 mb-2">
+                      <img src="${p.img}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                    </div>
+                    <h3 class="text-xs font-bold text-slate-900 truncate">${p.name}</h3>
+                    <div class="text-[10px] text-amber-500 font-bold flex items-center gap-1 mt-0.5">
+                      ★ <span>${p.rating}</span>
+                      <span class="text-slate-400 font-normal">(${p.reviews})</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center justify-between mt-3 pt-2 border-t border-slate-100">
+                    <span class="text-xs sm:text-sm font-black text-slate-900">$${p.price}</span>
+                    <button onclick="event.stopPropagation(); App.addToCart('${p.name}', ${p.price}, '${p.img}')" class="px-2.5 py-1 bg-purple-50 hover:bg-ziteo-purple hover:text-white text-ziteo-purple font-bold text-xs rounded-lg transition active:scale-95 flex items-center gap-1">
+                      <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                      <span>Add</span>
+                    </button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </section>
+        `;
+      },
+
+      // Section: Product Detail Interactive Showcase
+      renderProductViewerTemplate(sec, baseClass) {
+        const isDesktop = this.deviceMode === 'desktop';
+
+        if (isDesktop) {
+          return `
+            <section data-section-id="${sec.id}" class="${baseClass} px-8 py-8">
+              <div class="flex gap-10">
+                <div class="w-1/2 flex flex-col gap-3">
+                  <div class="w-full h-96 rounded-3xl overflow-hidden bg-slate-50 border border-slate-200/80 shadow-xs">
+                    <img id="detail-main-img" src="${sec.activeImage}" class="w-full h-full object-cover animate-fade-in">
+                  </div>
+                  <div class="flex items-center gap-3">
+                    ${sec.gallery.map(img => `
+                      <button onclick="event.stopPropagation(); App.setDetailImage('${img}')" class="w-20 h-20 rounded-2xl overflow-hidden border-2 ${img === sec.activeImage ? 'border-ziteo-purple' : 'border-transparent'} hover:opacity-90">
+                        <img src="${img}" class="w-full h-full object-cover">
+                      </button>
+                    `).join('')}
+                  </div>
+                </div>
+
+                <div class="w-1/2 flex flex-col justify-center">
+                  <div class="text-xs font-bold text-ziteo-purple uppercase tracking-wider mb-1">New Release 2026</div>
+                  <h1 class="text-3xl font-black text-slate-900 mb-2">${sec.productName}</h1>
+                  <div class="text-xs text-amber-500 font-bold mb-4">★★★★★ <span class="text-slate-500 font-medium ml-1">${sec.rating}</span></div>
+                  <div class="text-2xl font-black text-slate-900 mb-4">$${sec.price}</div>
+                  <p class="text-xs text-slate-600 leading-relaxed mb-6">${sec.description}</p>
+
+                  <div class="mb-4">
+                    <span class="text-xs font-bold text-slate-700 block mb-2">Color</span>
+                    <div class="flex items-center gap-2">
+                      ${sec.colors.map(c => `
+                        <div onclick="event.stopPropagation(); App.setDetailColor('${c}')" class="w-7 h-7 rounded-full border-2 ${c === sec.selectedColor ? 'border-ziteo-purple ring-2 ring-purple-200' : 'border-white'} shadow-xs cursor-pointer" style="background: ${c};"></div>
+                      `).join('')}
+                    </div>
+                  </div>
+
+                  <div class="mb-6">
+                    <span class="text-xs font-bold text-slate-700 block mb-2">Size</span>
+                    <div class="flex items-center gap-2">
+                      ${sec.sizes.map(s => `
+                        <button onclick="event.stopPropagation(); App.setDetailSize('${s}')" class="px-4 py-2 rounded-xl text-xs font-bold border transition ${s === sec.selectedSize ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}">
+                          ${s}
+                        </button>
+                      `).join('')}
+                    </div>
+                  </div>
+
+                  <button onclick="event.stopPropagation(); App.addToCart('${sec.productName}', ${sec.price}, '${sec.activeImage}')" class="w-full py-3.5 bg-[#53389E] hover:bg-purple-800 text-white font-bold text-sm rounded-2xl shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2 active:scale-98 transition">
+                    <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+                    <span>Add to Bag • $${sec.price}</span>
+                  </button>
+                </div>
+              </div>
+            </section>
+          `;
+        }
+
+        // Mobile Product Viewer
+        return `
+          <section data-section-id="${sec.id}" class="${baseClass} px-4 py-5">
+            <div class="w-full h-56 rounded-3xl overflow-hidden bg-slate-50 border border-slate-100 mb-3">
+              <img src="${sec.activeImage}" class="w-full h-full object-cover">
+            </div>
+
+            <div class="flex items-center gap-2 mb-4 overflow-x-auto no-scrollbar">
+              ${sec.gallery.map(img => `
+                <button onclick="event.stopPropagation(); App.setDetailImage('${img}')" class="w-14 h-14 rounded-xl overflow-hidden border-2 shrink-0 ${img === sec.activeImage ? 'border-ziteo-purple' : 'border-transparent'}">
+                  <img src="${img}" class="w-full h-full object-cover">
+                </button>
+              `).join('')}
+            </div>
+
+            <h1 class="text-lg font-black text-slate-900 leading-snug">${sec.productName}</h1>
+            <div class="flex items-center justify-between my-2">
+              <div class="text-xs text-amber-500 font-bold">★★★★★ <span class="text-slate-500 font-medium ml-1">${sec.rating}</span></div>
+              <div class="text-base font-black text-ziteo-purple">$${sec.price}</div>
+            </div>
+            <p class="text-xs text-slate-600 leading-relaxed mb-4">${sec.description}</p>
+
+            <div class="mb-3">
+              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Select Size</span>
+              <div class="grid grid-cols-5 gap-1.5">
+                ${sec.sizes.map(s => `
+                  <button onclick="event.stopPropagation(); App.setDetailSize('${s}')" class="py-1.5 text-xs font-bold rounded-xl border transition ${s === sec.selectedSize ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200'}">
+                    ${s}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+
+            <button onclick="event.stopPropagation(); App.addToCart('${sec.productName}', ${sec.price}, '${sec.activeImage}')" class="w-full py-3 bg-[#53389E] hover:bg-purple-800 text-white font-bold text-xs rounded-2xl shadow-md flex items-center justify-center gap-2 active:scale-98 transition">
+              <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+              <span>Add to Bag • $${sec.price}</span>
+            </button>
+          </section>
+        `;
+      },
+
+      setDetailImage(img) {
+        const sec = this.getSectionData('product-viewer');
+        if (sec) {
+          sec.activeImage = img;
+          this.renderCanvas();
+        }
+      },
+
+      setDetailSize(s) {
+        const sec = this.getSectionData('product-viewer');
+        if (sec) {
+          sec.selectedSize = s;
+          this.renderCanvas();
+        }
+      },
+
+      setDetailColor(c) {
+        const sec = this.getSectionData('product-viewer');
+        if (sec) {
+          sec.selectedColor = c;
+          this.renderCanvas();
+        }
+      },
+
+      // Section: Footer (Mobile vs Desktop)
+      renderFooterTemplate(sec, baseClass) {
+        const bg = sec.background;
+        const color = sec.textColor;
+        const isDesktop = this.deviceMode === 'desktop';
+
+        if (isDesktop) {
+          return `
+            <footer data-section-id="${sec.id}" class="${baseClass} px-8 py-12 border-t border-slate-100" style="background: ${bg}; color: ${color};">
+              <div class="grid grid-cols-4 gap-8 mb-8 pb-8 border-b border-slate-200">
+                <div>
+                  <div class="font-extrabold text-lg text-slate-900 tracking-wider mb-2">${sec.brandText}</div>
+                  <p class="text-xs text-slate-500 leading-relaxed max-w-xs">Elevating everyday routines through responsive footwear and modular apparel.</p>
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">Shop</div>
+                  <div class="flex flex-col gap-2 text-xs text-slate-500">
+                    <span onclick="App.switchPage('shop')" class="hover:text-black cursor-pointer">Performance Footwear</span>
+                    <span onclick="App.switchPage('shop')" class="hover:text-black cursor-pointer">Active Wear</span>
+                    <span onclick="App.switchPage('product-detail')" class="hover:text-black cursor-pointer">Featured Drop</span>
+                  </div>
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">Company</div>
+                  <div class="flex flex-col gap-2 text-xs text-slate-500">
+                    <span>About Us</span>
+                    <span>Sustainability</span>
+                    <span>Retail Stores</span>
+                  </div>
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">Newsletter</div>
+                  <div class="flex items-center gap-1.5">
+                    <input type="email" placeholder="Your email..." class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs w-full focus:outline-ziteo-purple">
+                    <button class="px-3.5 py-2 bg-slate-900 text-white font-bold text-xs rounded-xl shrink-0">Join</button>
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center justify-between text-xs text-slate-400">
+                <p>${sec.copyright}</p>
+                <div class="flex items-center gap-5">
+                  <span>Privacy Policy</span>
+                  <span>Terms of Service</span>
+                  <span>Cookie Settings</span>
+                </div>
+              </div>
+            </footer>
+          `;
+        }
+
+        // Mobile Minimal Footer
+        return `
+          <footer data-section-id="${sec.id}" class="${baseClass} px-4 py-8 text-center border-t border-slate-100" style="background: ${bg}; color: ${color};">
+            <div class="font-extrabold text-sm text-slate-900 tracking-wider mb-1">${sec.brandText}</div>
+            <div class="flex items-center justify-center gap-4 text-xs mb-3 text-slate-500 font-medium">
+              <span>Privacy</span>
+              <span>Terms</span>
+              <span>Contact</span>
+              <span>Support</span>
+            </div>
+            <p class="text-[10px] text-slate-400">${sec.copyright}</p>
+          </footer>
+        `;
+      },
+
+      /**
+       * ==============================================================
+       * 3. BOTTOM TOOLBAR (A Single Horizontal Context-Sensitive Bar)
+       * ==============================================================
+       */
+      renderBottomToolbar() {
+        const toolbar = document.getElementById('toolbar-buttons');
+        const contextIndicator = document.getElementById('toolbar-context-indicator');
+        const selectedName = document.getElementById('selected-element-name');
+        if (!toolbar) return;
+
+        let items = [];
+
+        // CASE 1: DEFAULT (No element selected)
+        if (!this.selectedElementId) {
+          if (contextIndicator) contextIndicator.classList.add('hidden');
+          
+          items = [
+            { id: 'tb-template', icon: 'layout-template', label: 'Template', action: () => this.openBottomSheet('page-templates') },
+            { id: 'tb-add-section', icon: 'plus-circle', label: 'Add Section', action: () => this.openBottomSheet('add-section') },
+            { id: 'tb-background', icon: 'palette', label: 'Background', action: () => this.openBottomSheet('page-background') },
+            { id: 'tb-preview', icon: 'eye', label: 'Preview', action: () => this.togglePreviewMode() }
+          ];
+        } 
+        // CASE 2: NAVBAR SELECTED
+        else if (this.selectedElementId === 'navbar') {
+          if (contextIndicator) {
+            contextIndicator.classList.remove('hidden');
+            if (selectedName) selectedName.textContent = 'Navbar Selected';
+          }
+          items = [
+            { id: 'tb-nav-template', icon: 'layout-template', label: 'Navbar Templates', action: () => this.openBottomSheet('navbar-templates') },
+            { id: 'tb-edit-brand', icon: 'pencil', label: 'Edit Brand', action: () => this.openBottomSheet('navbar-brand-editor') },
+            { id: 'tb-background', icon: 'palette', label: 'Background', action: () => this.openBottomSheet('section-background') },
+            { id: 'tb-text-color', icon: 'paint-brush', label: 'Text Color', action: () => this.openBottomSheet('text-color') }
+          ];
+        } 
+        // CASE 3: HERO SECTION SELECTED
+        else if (this.selectedElementId === 'hero') {
+          if (contextIndicator) {
+            contextIndicator.classList.remove('hidden');
+            if (selectedName) selectedName.textContent = 'Hero Slider Selected';
+          }
+          items = [
+            { id: 'tb-hero-template', icon: 'layout-template', label: 'Hero Templates', action: () => this.openBottomSheet('hero-templates') },
+            { id: 'tb-image', icon: 'image', label: 'Photos', action: () => this.openBottomSheet('hero-image') },
+            { id: 'tb-background', icon: 'palette', label: 'Background', action: () => this.openBottomSheet('section-background') }
+          ];
+        } 
+        // CASE 4: COLLECTIONS HEADER SELECTED
+        else if (this.selectedElementId === 'collections-header') {
+          if (contextIndicator) {
+            contextIndicator.classList.remove('hidden');
+            if (selectedName) selectedName.textContent = 'Header Selected';
+          }
+          items = [
+            { id: 'tb-edit-text', icon: 'pencil-line', label: 'Edit Text', action: () => this.openBottomSheet('collections-header-text') },
+            { id: 'tb-badge-color', icon: 'paint-brush', label: 'Tag Color', action: () => this.openBottomSheet('badge-color') },
+            { id: 'tb-background', icon: 'palette', label: 'Background', action: () => this.openBottomSheet('section-background') }
+          ];
+        } 
+        // CASE 5: COLLECTIONS GRID SELECTED
+        else if (this.selectedElementId === 'collections-grid') {
+          if (contextIndicator) {
+            contextIndicator.classList.remove('hidden');
+            if (selectedName) selectedName.textContent = 'Cards Grid Selected';
+          }
+          items = [
+            { id: 'tb-grid-template', icon: 'layout-grid', label: 'Grid Layout', action: () => this.openBottomSheet('grid-templates') },
+            { id: 'tb-edit-collections', icon: 'pencil-line', label: 'Edit Items', action: () => this.openBottomSheet('collections-items-editor') },
+            { id: 'tb-background', icon: 'palette', label: 'Background', action: () => this.openBottomSheet('section-background') }
+          ];
+        }
+        // CASE 6: FOOTER SELECTED
+        else if (this.selectedElementId === 'footer') {
+          if (contextIndicator) {
+            contextIndicator.classList.remove('hidden');
+            if (selectedName) selectedName.textContent = 'Footer Selected';
+          }
+          items = [
+            { id: 'tb-footer-template', icon: 'layout-template', label: 'Footer Templates', action: () => this.openBottomSheet('footer-templates') },
+            { id: 'tb-background', icon: 'palette', label: 'Background', action: () => this.openBottomSheet('section-background') },
+            { id: 'tb-text-color', icon: 'paint-brush', label: 'Text Color', action: () => this.openBottomSheet('text-color') }
+          ];
+        }
+
+        toolbar.innerHTML = items.map(item => `
+          <button id="${item.id}" class="flex-1 max-w-[120px] flex flex-col items-center justify-center py-1 px-2 rounded-2xl hover:bg-slate-100 text-slate-700 active:scale-90 transition group">
+            <div class="w-8 h-8 rounded-xl flex items-center justify-center text-slate-700 group-hover:text-ziteo-purple transition">
+              <i data-lucide="${item.icon}" class="w-5 h-5 stroke-[1.75]"></i>
+            </div>
+            <span class="text-[11px] font-semibold text-slate-700 group-hover:text-ziteo-purple truncate max-w-[95px] mt-0.5 leading-tight">${item.label}</span>
+          </button>
+        `).join('');
+
+        lucide.createIcons();
+
+        items.forEach(item => {
+          const btn = document.getElementById(item.id);
+          if (btn) {
+            btn.onclick = (e) => {
+              e.stopPropagation();
+              item.action();
+            };
+          }
+        });
+      },
+
+      /**
+       * ==============================================================
+       * 4. CANVA-INSPIRED BOTTOM SHEET / MODAL
+       * ==============================================================
+       */
+      openBottomSheet(type) {
+        const container = document.getElementById('bottom-sheet-container');
+        const sheet = document.getElementById('bottom-sheet');
+        const backdrop = document.getElementById('bottom-sheet-backdrop');
+        const titleEl = document.getElementById('sheet-title');
+        const subtitleEl = document.getElementById('sheet-subtitle');
+        const bodyEl = document.getElementById('sheet-body');
+        const iconEl = document.getElementById('sheet-header-icon');
+
+        if (!sheet || !bodyEl) return;
+
+        let title = 'Customize';
+        let subtitle = 'Select an option';
+        let icon = 'settings';
+        let contentHtml = '';
+
+        if (navigator.vibrate) navigator.vibrate(10);
+
+        switch (type) {
+          case 'page-templates':
+            title = 'Page Templates';
+            subtitle = 'Tap to apply complete theme with live preview';
+            icon = 'layout';
+            contentHtml = this.renderPageTemplatesList();
+            break;
+
+          case 'navbar-templates':
+            title = 'Navbar Templates';
+            subtitle = 'Select navigation bar style with brand name ZITEO';
+            icon = 'layout-template';
+            contentHtml = this.renderNavbarTemplatesList();
+            break;
+
+          case 'navbar-brand-editor':
+            title = 'Edit Brand Identity';
+            subtitle = 'Update logo name and cart item count';
+            icon = 'pencil';
+            contentHtml = this.renderNavbarBrandEditor();
+            break;
+
+          case 'hero-templates':
+            title = 'Hero Templates';
+            subtitle = 'Choose featured showcase style';
+            icon = 'layout-template';
+            contentHtml = this.renderHeroTemplatesList();
+            break;
+
+          case 'hero-image':
+            title = 'Select Sneaker Photo';
+            subtitle = 'Choose featured sneaker photo';
+            icon = 'image';
+            contentHtml = this.renderHeroImagePicker();
+            break;
+
+          case 'collections-header-text':
+            title = 'Edit Title & Subtitle';
+            subtitle = 'Update headline and collection description';
+            icon = 'pencil-line';
+            contentHtml = this.renderCollectionsHeaderEditor();
+            break;
+
+          case 'badge-color':
+            title = 'Tag Accent Color';
+            subtitle = 'Choose color for EXPLORE COLLECTIONS';
+            icon = 'paint-brush';
+            contentHtml = this.renderBadgeColorPicker();
+            break;
+
+          case 'grid-templates':
+            title = 'Collection Grid Layout';
+            subtitle = 'Choose card display style';
+            icon = 'layout-grid';
+            contentHtml = this.renderGridLayoutList();
+            break;
+
+          case 'collections-items-editor':
+            title = 'Edit Collection Items';
+            subtitle = 'Update item titles and pricing';
+            icon = 'pencil-line';
+            contentHtml = this.renderCollectionsItemsEditor();
+            break;
+
+          case 'add-section':
+            title = 'Add New Section';
+            subtitle = 'Insert high-converting pre-built blocks';
+            icon = 'plus-circle';
+            contentHtml = this.renderAddSectionList();
+            break;
+
+          case 'footer-templates':
+            title = 'Footer Templates';
+            subtitle = 'Choose footer layout style';
+            icon = 'layout-template';
+            contentHtml = this.renderFooterTemplatesList();
+            break;
+
+          case 'page-background':
+          case 'section-background':
+            title = 'Background Colors';
+            subtitle = 'Tap to apply instantly';
+            icon = 'palette';
+            contentHtml = this.renderColorPickerList(type === 'page-background' ? 'page' : 'section');
+            break;
+
+          case 'text-color':
+            title = 'Text Color';
+            subtitle = 'Choose contrast color for text';
+            icon = 'paint-brush';
+            contentHtml = this.renderTextColorPickerList();
+            break;
+
+          default:
+            title = 'Options';
+            contentHtml = `<p class="text-xs text-slate-500">Tap any toolbar option above to edit.</p>`;
+        }
+
+        titleEl.textContent = title;
+        subtitleEl.textContent = subtitle;
+        bodyEl.innerHTML = contentHtml;
+        iconEl.setAttribute('data-lucide', icon);
+        lucide.createIcons();
+
+        container.classList.remove('pointer-events-none');
+        backdrop.classList.remove('opacity-0', 'pointer-events-none');
+        backdrop.classList.add('opacity-100', 'pointer-events-auto');
+        sheet.style.transform = 'translateY(0)';
+      },
+
+      closeBottomSheet() {
+        const container = document.getElementById('bottom-sheet-container');
+        const sheet = document.getElementById('bottom-sheet');
+        const backdrop = document.getElementById('bottom-sheet-backdrop');
+        if (!sheet) return;
+
+        sheet.style.transform = 'translateY(100%)';
+        backdrop.classList.remove('opacity-100', 'pointer-events-auto');
+        backdrop.classList.add('opacity-0', 'pointer-events-none');
+        setTimeout(() => {
+          container?.classList.add('pointer-events-none');
+        }, 250);
+      },
+
+      bindSheetDragGesture() {
+        const sheet = document.getElementById('bottom-sheet');
+        const handle = document.getElementById('sheet-drag-handle');
+        if (!sheet || !handle) return;
+
+        handle.addEventListener('touchstart', (e) => {
+          this.touchStartY = e.touches[0].clientY;
+          this.touchCurrentY = this.touchStartY;
+          this.isDraggingSheet = true;
+          sheet.style.transition = 'none';
+        }, { passive: true });
+
+        window.addEventListener('touchmove', (e) => {
+          if (!this.isDraggingSheet) return;
+          this.touchCurrentY = e.touches[0].clientY;
+          const deltaY = this.touchCurrentY - this.touchStartY;
+          if (deltaY > 0) {
+            sheet.style.transform = `translateY(${deltaY}px)`;
+          }
+        }, { passive: true });
+
+        window.addEventListener('touchend', () => {
+          if (!this.isDraggingSheet) return;
+          this.isDraggingSheet = false;
+          sheet.style.transition = 'transform 0.26s cubic-bezier(0.16, 1, 0.3, 1)';
+          const deltaY = this.touchCurrentY - this.touchStartY;
+          if (deltaY > 80) {
+            this.closeBottomSheet();
+          } else {
+            sheet.style.transform = 'translateY(0)';
+          }
+        });
+      },
+
+      /**
+       * TEMPLATES LIST RENDERERS WITH LIVE BRAND DATA
+       */
+      renderNavbarTemplatesList() {
+        const nav = this.getSectionData('navbar');
+        const current = nav ? nav.template : 'ziteo-standard';
+        const brand = nav ? (nav.logoText || 'ZITEO') : 'ZITEO';
+        const cartCount = this.cart.reduce((s, i) => s + i.qty, 0);
+
+        const templates = [
+          {
+            id: 'ziteo-standard',
+            name: 'ZITEO Centered Brand (Screenshot)',
+            desc: 'Hamburger left, [Z] ZITEO center, Search & Shopping Bag right',
+            renderLivePreview: () => `
+              <div class="w-full bg-white border border-slate-200/90 rounded-2xl p-2.5 flex items-center justify-between shadow-2xs">
+                <i data-lucide="menu" class="w-4 h-4 text-slate-800"></i>
+                <div class="flex items-center gap-1.5">
+                  <div class="w-5 h-5 rounded-md bg-[#53389E] text-white font-extrabold text-[10px] flex items-center justify-center shadow-xs">
+                    ${brand.charAt(0)}
+                  </div>
+                  <span class="font-extrabold text-xs tracking-wider text-slate-900 font-sans">${brand}</span>
+                </div>
+                <div class="flex items-center gap-2.5 text-slate-800">
+                  <i data-lucide="search" class="w-4 h-4 stroke-[2]"></i>
+                  <div class="relative">
+                    <i data-lucide="shopping-bag" class="w-4 h-4 stroke-[2]"></i>
+                    <span class="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-[#53389E] text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+                      ${cartCount}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            `
+          },
+          {
+            id: 'ziteo-left-brand',
+            name: 'ZITEO Classic Left Brand',
+            desc: '[Z] ZITEO left, text links center, Search & Bag right',
+            renderLivePreview: () => `
+              <div class="w-full bg-white border border-slate-200/90 rounded-2xl p-2.5 flex items-center justify-between shadow-2xs">
+                <div class="flex items-center gap-1.5">
+                  <div class="w-5 h-5 rounded-md bg-[#53389E] text-white font-extrabold text-[10px] flex items-center justify-center shadow-xs">
+                    ${brand.charAt(0)}
+                  </div>
+                  <span class="font-extrabold text-xs tracking-wider text-slate-900 font-sans">${brand}</span>
+                </div>
+                <div class="flex items-center gap-2 text-[10px] font-bold text-slate-600">
+                  <span class="text-ziteo-purple">Shop</span>
+                  <span>Drops</span>
+                </div>
+                <div class="flex items-center gap-2.5 text-slate-800">
+                  <i data-lucide="search" class="w-4 h-4 stroke-[2]"></i>
+                  <div class="relative">
+                    <i data-lucide="shopping-bag" class="w-4 h-4 stroke-[2]"></i>
+                    <span class="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-[#53389E] text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+                      ${cartCount}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            `
+          },
+          {
+            id: 'ziteo-floating-pill',
+            name: 'ZITEO Floating Glass Pill',
+            desc: 'Modern rounded-full frosted capsule with [Z] ZITEO',
+            renderLivePreview: () => `
+              <div class="w-full bg-slate-100/70 p-1.5 rounded-2xl flex items-center justify-center">
+                <div class="w-full bg-white/95 rounded-full border border-slate-200 py-1.5 px-3 flex items-center justify-between shadow-xs">
+                  <i data-lucide="menu" class="w-3.5 h-3.5 text-slate-700"></i>
+                  <div class="flex items-center gap-1">
+                    <div class="w-4 h-4 rounded bg-[#53389E] text-white font-black text-[9px] flex items-center justify-center">
+                      ${brand.charAt(0)}
+                    </div>
+                    <span class="font-black text-[11px] tracking-wide text-slate-900">${brand}</span>
+                  </div>
+                  <div class="flex items-center gap-2 text-slate-700">
+                    <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                    <div class="relative">
+                      <i data-lucide="shopping-bag" class="w-3.5 h-3.5"></i>
+                      <span class="absolute -top-1 -right-1 w-3 h-3 bg-[#53389E] text-white text-[7px] font-bold rounded-full flex items-center justify-center">
+                        ${cartCount}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `
+          }
+        ];
+
+        return `
+          <div class="flex flex-col gap-3">
+            <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tap a template to apply with live preview:</div>
+            ${templates.map(t => `
+              <div onclick="App.applyNavbarTemplate('${t.id}')" class="p-3 rounded-2xl border ${t.id === current ? 'border-ziteo-purple bg-purple-50/50 ring-2 ring-purple-100 shadow-xs' : 'border-slate-200 hover:border-purple-200 bg-white'} cursor-pointer active:scale-98 transition flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                  <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <span>${t.name}</span>
+                    ${t.id === current ? '<span class="text-[9px] font-bold px-2 py-0.5 bg-[#53389E] text-white rounded-full">Active</span>' : ''}
+                  </div>
+                  <span class="text-[11px] text-slate-400 font-medium">${t.desc}</span>
+                </div>
+                <div class="bg-slate-50/70 p-1.5 rounded-xl">
+                  ${t.renderLivePreview()}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      },
+
+      applyNavbarTemplate(templateId) {
+        const nav = this.getSectionData('navbar');
+        if (nav) {
+          nav.template = templateId;
+          this.saveHistoryState();
+          this.renderCanvas();
+          const sheetBody = document.getElementById('sheet-body');
+          if (sheetBody) {
+            sheetBody.innerHTML = this.renderNavbarTemplatesList();
+            lucide.createIcons();
+          }
+          this.showToast('Applied Navbar Template');
+        }
+      },
+
+      renderNavbarBrandEditor() {
+        const nav = this.getSectionData('navbar');
+        if (!nav) return '';
+
+        return `
+          <div class="flex flex-col gap-3">
+            <div>
+              <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Brand Name Text</label>
+              <input type="text" id="navbar-brand-input" value="${nav.logoText || 'ZITEO'}" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold focus:outline-ziteo-purple">
+            </div>
+            <button onclick="App.saveNavbarBrand()" class="w-full py-2.5 bg-ziteo-purple text-white text-xs font-bold rounded-xl active:scale-98 transition shadow-md">
+              Update Brand Identity
+            </button>
+          </div>
+        `;
+      },
+
+      saveNavbarBrand() {
+        const nav = this.getSectionData('navbar');
+        const input = document.getElementById('navbar-brand-input');
+        if (nav && input) {
+          nav.logoText = input.value.trim() || 'ZITEO';
+          this.saveHistoryState();
+          this.renderCanvas();
+          this.closeBottomSheet();
+          this.showToast('Brand name updated across all templates');
+        }
+      },
+
+      renderHeroTemplatesList() {
+        const hero = this.getSectionData('hero');
+        const current = hero ? hero.template : 'sneaker-slider';
+
+        const templates = [
+          {
+            id: 'sneaker-slider',
+            name: 'Hero Sneaker Slider (Screenshot)',
+            desc: 'Rounded hero card with overlay pagination dots • [===] • •',
+            preview: `
+              <div class="relative w-full h-24 rounded-xl overflow-hidden bg-slate-900">
+                <img src="${hero.imageUrl}" class="w-full h-full object-cover">
+                <div class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span class="w-1 h-1 rounded-full bg-white/50"></span>
+                  <span class="w-3.5 h-1 rounded-full bg-white"></span>
+                  <span class="w-1 h-1 rounded-full bg-white/50"></span>
+                  <span class="w-1 h-1 rounded-full bg-white/50"></span>
+                </div>
+              </div>
+            `
+          },
+          {
+            id: 'sneaker-split',
+            name: 'Split Sneaker Card & CTA',
+            desc: 'Sneaker showcase with Built For Every Routine badge & action button',
+            preview: `
+              <div class="w-full bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-between gap-2 shadow-2xs">
+                <img src="${hero.imageUrl}" class="w-16 h-12 object-cover rounded-lg">
+                <div class="flex-1">
+                  <div class="text-[9px] font-bold text-ziteo-purple uppercase">EXPLORE</div>
+                  <div class="text-[11px] font-bold text-slate-800 leading-tight">Built For Every Routine</div>
+                </div>
+                <div class="px-2 py-1 bg-[#53389E] text-white text-[9px] font-bold rounded-lg shrink-0">Shop</div>
+              </div>
+            `
+          }
+        ];
+
+        return `
+          <div class="flex flex-col gap-3">
+            <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tap to apply hero style:</div>
+            ${templates.map(t => `
+              <div onclick="App.applyHeroTemplate('${t.id}')" class="p-3 rounded-2xl border ${t.id === current ? 'border-ziteo-purple bg-purple-50/50 ring-2 ring-purple-100 shadow-xs' : 'border-slate-200 hover:border-purple-200 bg-white'} cursor-pointer active:scale-98 transition flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                  <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <span>${t.name}</span>
+                    ${t.id === current ? '<span class="text-[9px] font-bold px-2 py-0.5 bg-[#53389E] text-white rounded-full">Active</span>' : ''}
+                  </div>
+                  <span class="text-[11px] text-slate-400 font-medium">${t.desc}</span>
+                </div>
+                ${t.preview}
+              </div>
+            `).join('')}
+          </div>
+        `;
+      },
+
+      applyHeroTemplate(templateId) {
+        const hero = this.getSectionData('hero');
+        if (hero) {
+          hero.template = templateId;
+          this.saveHistoryState();
+          this.renderCanvas();
+          const sheetBody = document.getElementById('sheet-body');
+          if (sheetBody) {
+            sheetBody.innerHTML = this.renderHeroTemplatesList();
+            lucide.createIcons();
+          }
+          this.showToast('Hero template applied');
+        }
+      },
+
+      renderHeroImagePicker() {
+        const sneakers = [
+          { name: 'Red/Black Air Retro (Screenshot)', url: 'https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=1200&q=80' },
+          { name: 'Classic Red High Top', url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1200&q=80' },
+          { name: 'Court Edition Sport', url: 'https://images.unsplash.com/photo-1515955656352-a1fa3ffcd111?auto=format&fit=crop&w=1200&q=80' }
+        ];
+
+        return `
+          <div class="grid grid-cols-1 gap-3">
+            ${sneakers.map(s => `
+              <div onclick="App.applyHeroImage('${s.url}')" class="p-2.5 rounded-2xl border border-slate-200 hover:border-ziteo-purple bg-white flex items-center gap-3 cursor-pointer active:scale-98 transition">
+                <img src="${s.url}" class="w-16 h-12 object-cover rounded-xl shadow-xs">
+                <span class="text-xs font-bold text-slate-800">${s.name}</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      },
+
+      applyHeroImage(url) {
+        const hero = this.getSectionData('hero');
+        if (hero) {
+          hero.imageUrl = url;
+          this.saveHistoryState();
+          this.renderCanvas();
+          this.closeBottomSheet();
+          this.showToast('Hero photo updated');
+        }
+      },
+
+      renderCollectionsHeaderEditor() {
+        const header = this.getSectionData('collections-header');
+        if (!header) return '';
+
+        return `
+          <div class="flex flex-col gap-3">
+            <div>
+              <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Tag Label</label>
+              <input type="text" id="header-badge-input" value="${header.badgeText}" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold focus:outline-ziteo-purple">
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Headline</label>
+              <input type="text" id="header-title-input" value="${header.title}" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold focus:outline-ziteo-purple">
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Subtitle</label>
+              <textarea id="header-subtitle-input" rows="2" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-ziteo-purple">${header.subtitle}</textarea>
+            </div>
+            <button onclick="App.saveCollectionsHeader()" class="w-full py-2.5 bg-ziteo-purple text-white text-xs font-bold rounded-xl active:scale-98 transition shadow-md">
+              Save Header Content
+            </button>
+          </div>
+        `;
+      },
+
+      saveCollectionsHeader() {
+        const header = this.getSectionData('collections-header');
+        const badgeInput = document.getElementById('header-badge-input');
+        const titleInput = document.getElementById('header-title-input');
+        const subInput = document.getElementById('header-subtitle-input');
+        if (header) {
+          if (badgeInput) header.badgeText = badgeInput.value;
+          if (titleInput) header.title = titleInput.value;
+          if (subInput) header.subtitle = subInput.value;
+          this.saveHistoryState();
+          this.renderCanvas();
+          this.closeBottomSheet();
+          this.showToast('Header content saved');
+        }
+      },
+
+      renderBadgeColorPicker() {
+        const colors = [
+          { name: 'ZITEO Purple (Screenshot)', value: '#53389E' },
+          { name: 'Deep Indigo', value: '#4338CA' },
+          { name: 'Canva Violet', value: '#7D2AE8' },
+          { name: 'Crimson Red', value: '#DC2626' },
+          { name: 'Emerald Green', value: '#059669' }
+        ];
+
+        return `
+          <div class="grid grid-cols-1 gap-2.5">
+            ${colors.map(c => `
+              <button onclick="App.applyBadgeColor('${c.value}')" class="p-3 rounded-2xl border border-slate-200 hover:border-ziteo-purple bg-white flex items-center gap-3 active:scale-95 transition">
+                <span class="w-6 h-6 rounded-full border border-slate-300 shadow-xs" style="background: ${c.value};"></span>
+                <span class="text-xs font-bold text-slate-800">${c.name}</span>
+              </button>
+            `).join('')}
+          </div>
+        `;
+      },
+
+      applyBadgeColor(color) {
+        const header = this.getSectionData('collections-header');
+        if (header) {
+          header.badgeColor = color;
+          this.saveHistoryState();
+          this.renderCanvas();
+          this.closeBottomSheet();
+          this.showToast('Tag color updated');
+        }
+      },
+
+      renderGridLayoutList() {
+        return `
+          <div class="grid grid-cols-1 gap-2.5">
+            <div onclick="App.showToast('2-Column Cards applied'); App.closeBottomSheet();" class="p-3.5 rounded-2xl border border-ziteo-purple bg-purple-50/60 shadow-xs cursor-pointer flex items-center justify-between">
+              <div>
+                <div class="text-xs font-bold text-slate-900">2-Column Rounded Cards (Screenshot)</div>
+                <div class="text-[11px] text-slate-500">22px rounded corners with clean image focus</div>
+              </div>
+              <i data-lucide="check-circle" class="w-5 h-5 text-ziteo-purple"></i>
+            </div>
+          </div>
+        `;
+      },
+
+      renderCollectionsItemsEditor() {
+        const sec = this.getSectionData('collections-grid');
+        if (!sec) return '';
+
+        return `
+          <div class="flex flex-col gap-3">
+            ${sec.items.map((item, idx) => `
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <span class="text-[10px] font-bold text-slate-400 uppercase">Item ${idx + 1}</span>
+                <input type="text" id="col-title-${idx}" value="${item.title}" class="w-full mt-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold">
+              </div>
+            `).join('')}
+            <button onclick="App.saveCollectionItems()" class="w-full py-2.5 bg-ziteo-purple text-white text-xs font-bold rounded-xl active:scale-98 transition shadow-md">
+              Save Items
+            </button>
+          </div>
+        `;
+      },
+
+      saveCollectionItems() {
+        const sec = this.getSectionData('collections-grid');
+        if (sec) {
+          sec.items.forEach((item, idx) => {
+            const input = document.getElementById(`col-title-${idx}`);
+            if (input) item.title = input.value;
+          });
+          this.saveHistoryState();
+          this.renderCanvas();
+          this.closeBottomSheet();
+          this.showToast('Collection items updated');
+        }
+      },
+
+      renderAddSectionList() {
+        return `
+          <div class="grid grid-cols-1 gap-2.5">
+            <div onclick="App.insertSection('reviews')" class="p-3 rounded-2xl border border-slate-200 hover:border-ziteo-purple bg-white flex items-center justify-between cursor-pointer active:scale-98 transition">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-purple-50 text-ziteo-purple flex items-center justify-center"><i data-lucide="star" class="w-4 h-4"></i></div>
+                <div><h4 class="text-xs font-bold text-slate-900">Customer Reviews & Proof</h4><p class="text-[11px] text-slate-400">4.9 Star testimonials strip</p></div>
+              </div>
+              <i data-lucide="plus" class="w-4 h-4 text-slate-400"></i>
+            </div>
+            <div onclick="App.insertSection('newsletter')" class="p-3 rounded-2xl border border-slate-200 hover:border-ziteo-purple bg-white flex items-center justify-between cursor-pointer active:scale-98 transition">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-purple-50 text-ziteo-purple flex items-center justify-center"><i data-lucide="mail" class="w-4 h-4"></i></div>
+                <div><h4 class="text-xs font-bold text-slate-900">VIP Newsletter Signup</h4><p class="text-[11px] text-slate-400">Email capture banner</p></div>
+              </div>
+              <i data-lucide="plus" class="w-4 h-4 text-slate-400"></i>
+            </div>
+          </div>
+        `;
+      },
+
+      insertSection(type) {
+        const page = this.data.pages[this.currentPage];
+        const newSec = {
+          id: 'custom-' + Date.now(),
+          name: type === 'reviews' ? 'Customer Testimonials' : 'VIP Newsletter',
+          template: 'standard-heading',
+          badgeText: type === 'reviews' ? 'WHAT OUR CUSTOMERS SAY' : 'STAY CONNECTED',
+          badgeColor: '#53389E',
+          title: type === 'reviews' ? 'Loved by 50,000+ Movement Creators' : 'Get 15% Off Your First Pair',
+          subtitle: type === 'reviews' ? 'Unmatched daily comfort verified by runners and streetwear enthusiasts.' : 'Join the ZITEO community for early access drops.',
+          background: '#ffffff',
+          textColor: '#0f172a'
+        };
+
+        const footerIdx = page.sections.findIndex(s => s.id === 'footer');
+        if (footerIdx !== -1) page.sections.splice(footerIdx, 0, newSec);
+        else page.sections.push(newSec);
+
+        this.saveHistoryState();
+        this.renderCanvas();
+        this.closeBottomSheet();
+        this.selectElement(newSec.id);
+        this.showToast('Section added to page');
+      },
+
+      renderPageTemplatesList() {
+        const themes = [
+          {
+            id: 'ziteo-streetwear',
+            name: 'ZITEO Routine & Streetwear (Screenshot)',
+            desc: 'Clean white background, purple [Z] ZITEO navbar, Air sneaker slider',
+            preview: `
+              <div class="w-full bg-white border border-slate-200 rounded-xl p-2 flex flex-col gap-1.5 shadow-2xs">
+                <div class="flex items-center justify-between pb-1 border-b border-slate-100">
+                  <div class="w-3 h-2 bg-slate-800 rounded-xs"></div>
+                  <div class="flex items-center gap-1">
+                    <div class="w-3.5 h-3.5 rounded bg-[#53389E] text-white text-[8px] font-bold flex items-center justify-center">Z</div>
+                    <span class="font-extrabold text-[10px] tracking-wide text-slate-900">ZITEO</span>
+                  </div>
+                  <div class="w-3 h-3 rounded-full bg-purple-700"></div>
+                </div>
+                <div class="w-full h-10 rounded-lg overflow-hidden bg-slate-900 relative">
+                  <img src="https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=400&q=80" class="w-full h-full object-cover">
+                  <div class="absolute bottom-1 left-1/2 -translate-x-1/2 w-4 h-1 bg-white rounded-full"></div>
+                </div>
+                <div class="text-[8px] font-bold text-ziteo-purple uppercase">EXPLORE COLLECTIONS</div>
+                <div class="text-[9px] font-bold text-slate-900 -mt-1">Built For Every Routine</div>
+              </div>
+            `
+          },
+          {
+            id: 'ziteo-dark',
+            name: 'ZITEO Obsidian Dark Edition',
+            desc: 'Midnight dark aesthetic, glowing purple accents',
+            preview: `
+              <div class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 flex flex-col gap-1.5 shadow-xs text-white">
+                <div class="flex items-center justify-between pb-1 border-b border-slate-800">
+                  <div class="w-3 h-2 bg-slate-400 rounded-xs"></div>
+                  <div class="flex items-center gap-1">
+                    <div class="w-3.5 h-3.5 rounded bg-[#6941C6] text-white text-[8px] font-bold flex items-center justify-center">Z</div>
+                    <span class="font-extrabold text-[10px] tracking-wide text-white">ZITEO</span>
+                  </div>
+                  <div class="w-3 h-3 rounded-full bg-purple-600"></div>
+                </div>
+                <div class="w-full h-10 rounded-lg overflow-hidden bg-slate-800 relative">
+                  <img src="https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=400&q=80" class="w-full h-full object-cover opacity-80">
+                </div>
+                <div class="text-[8px] font-bold text-purple-400 uppercase">EXPLORE COLLECTIONS</div>
+                <div class="text-[9px] font-bold text-white -mt-1">Built For Every Routine</div>
+              </div>
+            `
+          }
+        ];
+
+        return `
+          <div class="flex flex-col gap-3">
+            <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tap theme to apply across the whole page:</div>
+            ${themes.map(t => `
+              <div onclick="App.applyPageTheme('${t.id}')" class="p-3 rounded-2xl border border-slate-200 hover:border-ziteo-purple bg-white cursor-pointer active:scale-98 transition flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-xs font-bold text-slate-900">${t.name}</div>
+                    <div class="text-[11px] text-slate-400">${t.desc}</div>
+                  </div>
+                  <button class="px-2.5 py-1 bg-purple-50 text-ziteo-purple rounded-lg text-xs font-bold">Apply</button>
+                </div>
+                ${t.preview}
+              </div>
+            `).join('')}
+          </div>
+        `;
+      },
+
+      applyPageTheme(themeId) {
+        const page = this.data.pages[this.currentPage];
+        const nav = this.getSectionData('navbar');
+        const hero = this.getSectionData('hero');
+
+        if (themeId === 'ziteo-dark') {
+          page.background = '#0f172a';
+          if (nav) {
+            nav.template = 'ziteo-dark-contrast';
+            nav.background = '#020617';
+            nav.textColor = '#ffffff';
+          }
+        } else {
+          page.background = '#ffffff';
+          if (nav) {
+            nav.template = 'ziteo-standard';
+            nav.background = '#ffffff';
+            nav.textColor = '#0f172a';
+          }
+          if (hero) hero.template = 'sneaker-slider';
+        }
+
+        this.saveHistoryState();
+        this.renderCanvas();
+        this.closeBottomSheet();
+        this.showToast('Theme applied with live preview!');
+      },
+
+      renderFooterTemplatesList() {
+        return `
+          <div class="grid grid-cols-1 gap-2.5">
+            <div onclick="App.showToast('Minimal clean footer applied'); App.closeBottomSheet();" class="p-3.5 rounded-2xl border border-ziteo-purple bg-purple-50/60 shadow-xs cursor-pointer flex items-center justify-between">
+              <div>
+                <div class="text-xs font-bold text-slate-900">Minimal Clean Footer</div>
+                <div class="text-[11px] text-slate-500">Centered brand name, legal links and copyright</div>
+              </div>
+              <i data-lucide="check-circle" class="w-5 h-5 text-ziteo-purple"></i>
+            </div>
+          </div>
+        `;
+      },
+
+      renderColorPickerList(target) {
+        const presets = [
+          { name: 'Pure White', value: '#ffffff' },
+          { name: 'Subtle Slate', value: '#f8fafc' },
+          { name: 'Soft Purple Tint', value: '#f5f3ff' },
+          { name: 'Warm Cream', value: '#fefce8' }
+        ];
+
+        return `
+          <div>
+            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Preset Colors</div>
+            <div class="grid grid-cols-2 gap-2.5 mb-4">
+              ${presets.map(p => `
+                <button onclick="App.applyColor('${target}', '${p.value}')" class="h-14 rounded-2xl border border-slate-200 shadow-xs flex items-center px-3 gap-2.5 active:scale-95 transition" style="background: ${p.value};">
+                  <span class="w-5 h-5 rounded-full border border-slate-300" style="background: ${p.value};"></span>
+                  <span class="text-xs font-bold text-slate-800">${p.name}</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      },
+
+      applyColor(target, value) {
+        if (target === 'page') {
+          this.data.pages[this.currentPage].background = value;
+        } else if (this.selectedElementId) {
+          const sec = this.getSectionData(this.selectedElementId);
+          if (sec) sec.background = value;
+        }
+        this.saveHistoryState();
+        this.renderCanvas();
+        this.closeBottomSheet();
+        this.showToast('Background updated');
+      },
+
+      renderTextColorPickerList() {
+        const colors = [
+          { name: 'Dark Slate', value: '#0f172a' },
+          { name: 'ZITEO Purple', value: '#53389E' },
+          { name: 'Muted Slate', value: '#64748b' }
+        ];
+
+        return `
+          <div class="grid grid-cols-1 gap-2.5">
+            ${colors.map(c => `
+              <button onclick="App.applyTextColor('${c.value}')" class="p-3 rounded-2xl border border-slate-200 hover:border-ziteo-purple bg-white flex items-center gap-2.5 active:scale-95 transition">
+                <span class="w-6 h-6 rounded-full border border-slate-300 shadow-xs" style="background: ${c.value};"></span>
+                <span class="text-xs font-bold text-slate-800">${c.name}</span>
+              </button>
+            `).join('')}
+          </div>
+        `;
+      },
+
+      applyTextColor(color) {
+        if (this.selectedElementId) {
+          const sec = this.getSectionData(this.selectedElementId);
+          if (sec) sec.textColor = color;
+          this.saveHistoryState();
+          this.renderCanvas();
+          this.closeBottomSheet();
+          this.showToast('Text color updated');
+        }
+      },
+
+      /**
+       * LIVE CART INTERACTIONS
+       */
+      openCartDrawer() {
+        this.renderCartDrawer();
+        const container = document.getElementById('cart-drawer-container');
+        const drawer = document.getElementById('cart-drawer');
+        const backdrop = document.getElementById('cart-drawer-backdrop');
+        if (!container || !drawer) return;
+
+        container.classList.remove('pointer-events-none');
+        backdrop.classList.remove('opacity-0', 'pointer-events-none');
+        backdrop.classList.add('opacity-100', 'pointer-events-auto');
+        drawer.style.transform = 'translateX(0)';
+        lucide.createIcons();
+      },
+
+      closeCartDrawer() {
+        const container = document.getElementById('cart-drawer-container');
+        const drawer = document.getElementById('cart-drawer');
+        const backdrop = document.getElementById('cart-drawer-backdrop');
+        if (!drawer) return;
+
+        drawer.style.transform = 'translateX(100%)';
+        backdrop.classList.remove('opacity-100', 'pointer-events-auto');
+        backdrop.classList.add('opacity-0', 'pointer-events-none');
+        setTimeout(() => container?.classList.add('pointer-events-none'), 250);
+      },
+
+      renderCartDrawer() {
+        const list = document.getElementById('cart-items-list');
+        const subtotalEl = document.getElementById('cart-subtotal');
+        const countBadge = document.getElementById('cart-badge-count');
+        if (!list) return;
+
+        const totalItems = this.cart.reduce((s, i) => s + i.qty, 0);
+        const subtotal = this.cart.reduce((s, i) => s + (i.price * i.qty), 0);
+
+        if (countBadge) countBadge.textContent = totalItems;
+        if (subtotalEl) subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
+
+        if (this.cart.length === 0) {
+          list.innerHTML = `<div class="py-12 text-center text-xs text-slate-400">Your bag is empty.</div>`;
+          return;
+        }
+
+        list.innerHTML = this.cart.map((item, idx) => `
+          <div class="flex items-center gap-3 p-2 bg-slate-50 rounded-xl border border-slate-100">
+            <img src="${item.img}" class="w-14 h-14 object-cover rounded-lg">
+            <div class="flex-1">
+              <h4 class="text-xs font-bold text-slate-800">${item.name}</h4>
+              <div class="text-xs font-black text-ziteo-purple">$${item.price}</div>
+              <div class="flex items-center gap-2 mt-1">
+                <button onclick="App.updateCartQty(${idx}, -1)" class="w-5 h-5 rounded bg-white border border-slate-200 flex items-center justify-center text-xs font-bold hover:bg-slate-100">-</button>
+                <span class="text-xs font-bold text-slate-800">${item.qty}</span>
+                <button onclick="App.updateCartQty(${idx}, 1)" class="w-5 h-5 rounded bg-white border border-slate-200 flex items-center justify-center text-xs font-bold hover:bg-slate-100">+</button>
+              </div>
+            </div>
+            <button onclick="App.removeCartItem(${idx})" class="p-1 text-slate-400 hover:text-red-500">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        `).join('');
+
+        lucide.createIcons();
+      },
+
+      addToCart(name, price, img) {
+        const existing = this.cart.find(i => i.name === name);
+        if (existing) existing.qty += 1;
+        else this.cart.push({ id: 'item-' + Date.now(), name, price, qty: 1, img });
+
+        this.renderCanvas();
+        this.openCartDrawer();
+        this.showToast(`Added ${name} to Bag!`);
+      },
+
+      updateCartQty(idx, delta) {
+        if (this.cart[idx]) {
+          this.cart[idx].qty += delta;
+          if (this.cart[idx].qty <= 0) this.cart.splice(idx, 1);
+          this.renderCartDrawer();
+          this.renderCanvas();
+        }
+      },
+
+      removeCartItem(idx) {
+        this.cart.splice(idx, 1);
+        this.renderCartDrawer();
+        this.renderCanvas();
+        this.showToast('Item removed');
+      },
+
+      /**
+       * LIVE SEARCH MODAL
+       */
+      openSearchModal() {
+        const modal = document.getElementById('search-modal');
+        modal?.classList.remove('hidden');
+        document.getElementById('store-search-input')?.focus();
+      },
+
+      closeSearchModal() {
+        document.getElementById('search-modal')?.classList.add('hidden');
+      },
+
+      /**
+       * Preview Mode Toggle
+       */
+      togglePreviewMode(force) {
+        this.isPreviewMode = typeof force === 'boolean' ? force : !this.isPreviewMode;
+        const toolbar = document.getElementById('bottom-bar-wrapper');
+
+        if (this.isPreviewMode) {
+          this.deselectElement();
+          toolbar?.classList.add('hidden');
+          this.showToast('Preview mode enabled (Tap anywhere to return)');
+        } else {
+          toolbar?.classList.remove('hidden');
+          this.showToast('Returned to Editor mode');
+        }
+
+        this.renderCanvas();
+      },
+
+      /**
+       * Toast Notifications
+       */
+      showToast(msg) {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = 'bg-slate-900/90 backdrop-blur text-white text-xs font-bold px-4 py-2 rounded-full shadow-xl flex items-center gap-2 animate-slide-up pointer-events-auto border border-white/10';
+        toast.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span><span>${msg}</span>`;
+        container.appendChild(toast);
+
+        setTimeout(() => {
+          toast.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+          setTimeout(() => toast.remove(), 300);
+        }, 2200);
+      },
+
+      /**
+       * Popovers
+       */
+      togglePageMenu() {
+        const popover = document.getElementById('page-menu-popover');
+        popover?.classList.toggle('hidden');
+        document.getElementById('more-menu-popover')?.classList.add('hidden');
+      },
+
+      closePageMenu() {
+        document.getElementById('page-menu-popover')?.classList.add('hidden');
+      },
+
+      toggleMoreMenu() {
+        const popover = document.getElementById('more-menu-popover');
+        popover?.classList.toggle('hidden');
+        document.getElementById('page-menu-popover')?.classList.add('hidden');
+      },
+
+      closeMoreMenu() {
+        document.getElementById('more-menu-popover')?.classList.add('hidden');
+      },
+
+      /**
+       * Real HTML Exporter
+       */
+      exportCleanHTML() {
+        const canvas = document.getElementById('website-canvas');
+        if (!canvas) return;
+
+        // Clone canvas and remove editor handles/classes
+        const clone = canvas.cloneNode(true);
+        clone.querySelectorAll('.canva-handle, .canva-badge-pill').forEach(el => el.remove());
+        clone.querySelectorAll('.canva-selected-section').forEach(el => el.classList.remove('canva-selected-section'));
+
+        const fullHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZITEO • Built For Every Routine</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"><\/script>
+  <script src="https://unpkg.com/lucide@latest"><\/script>
+</head>
+<body class="bg-white text-slate-800 font-sans antialiased">
+  <div class="max-w-7xl mx-auto">
+    ${clone.innerHTML}
+  </div>
+  <script>lucide.createIcons();<\/script>
+</body>
+</html>`;
+
+        const blob = new Blob([fullHTML], { type: 'text/html' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `ziteo-${this.currentPage}-page.html`;
+        a.click();
+        this.showToast('Production HTML exported!');
+      },
+
+      /**
+       * Event Listeners
+       */
+      bindEvents() {
+        // Back to Home
+        document.getElementById('btn-back-home')?.addEventListener('click', () => {
+          this.switchPage('home');
+          this.showToast('Home Page');
+        });
+
+        // Undo & Redo
+        document.getElementById('btn-undo')?.addEventListener('click', () => this.undo());
+        document.getElementById('btn-redo')?.addEventListener('click', () => this.redo());
+
+        // Zoom Buttons
+        document.getElementById('btn-zoom-in')?.addEventListener('click', () => this.setZoom(10));
+        document.getElementById('btn-zoom-out')?.addEventListener('click', () => this.setZoom(-10));
+
+        // Device Switcher Buttons
+        ['mobile', 'tablet', 'desktop'].forEach(m => {
+          document.getElementById(`dev-btn-${m}`)?.addEventListener('click', () => this.setDeviceMode(m));
+          document.getElementById(`menu-dev-${m}`)?.addEventListener('click', () => {
+            this.setDeviceMode(m);
+            this.closeMoreMenu();
+          });
+        });
+
+        // Keyboard shortcuts
+        window.addEventListener('keydown', (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+            e.preventDefault();
+            this.undo();
+          } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) {
+            e.preventDefault();
+            this.redo();
+          } else if (e.key === 'Escape') {
+            this.closeBottomSheet();
+            this.closePageMenu();
+            this.closeMoreMenu();
+            this.closeCartDrawer();
+            this.closeSearchModal();
+            this.deselectElement();
+            if (this.isPreviewMode) this.togglePreviewMode(false);
+          } else if (e.key === 'p' || e.key === 'P') {
+            if (!['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+              e.preventDefault();
+              this.togglePreviewMode();
+            }
+          } else if (e.key === '1') {
+            if (!['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) this.setDeviceMode('mobile');
+          } else if (e.key === '2') {
+            if (!['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) this.setDeviceMode('tablet');
+          } else if (e.key === '3') {
+            if (!['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) this.setDeviceMode('desktop');
+          }
+        });
+
+        // Current Page Selector Dropdown
+        document.getElementById('btn-page-dropdown')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.togglePageMenu();
+        });
+
+        // Page menu buttons
+        document.querySelectorAll('.page-menu-item').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const pageId = btn.getAttribute('data-page');
+            this.switchPage(pageId);
+          });
+        });
+
+        // Deselect Button in context indicator
+        document.getElementById('btn-deselect')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.deselectElement();
+        });
+
+        // Preview button in header
+        document.getElementById('btn-toggle-preview')?.addEventListener('click', () => {
+          this.togglePreviewMode();
+        });
+
+        // Publish button in header
+        document.getElementById('btn-publish-header')?.addEventListener('click', () => {
+          document.getElementById('publish-modal')?.classList.remove('hidden');
+        });
+
+        // Three-Dot More Menu
+        document.getElementById('btn-more-menu')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.toggleMoreMenu();
+        });
+
+        document.getElementById('btn-close-publish')?.addEventListener('click', () => {
+          document.getElementById('publish-modal')?.classList.add('hidden');
+        });
+
+        document.getElementById('publish-modal-backdrop')?.addEventListener('click', () => {
+          document.getElementById('publish-modal')?.classList.add('hidden');
+        });
+
+        document.getElementById('btn-copy-link')?.addEventListener('click', () => {
+          navigator.clipboard?.writeText('https://ziteo.site/collections');
+          this.showToast('Link copied to clipboard!');
+        });
+
+        document.getElementById('btn-open-live-site')?.addEventListener('click', () => {
+          document.getElementById('publish-modal')?.classList.add('hidden');
+          this.togglePreviewMode(true);
+        });
+
+        document.getElementById('menu-share')?.addEventListener('click', () => {
+          this.closeMoreMenu();
+          document.getElementById('publish-modal')?.classList.remove('hidden');
+        });
+
+        document.getElementById('menu-export')?.addEventListener('click', () => {
+          this.closeMoreMenu();
+          this.exportCleanHTML();
+        });
+
+        document.getElementById('menu-reset')?.addEventListener('click', () => {
+          this.closeMoreMenu();
+          if (confirm('Reset to default?')) window.location.reload();
+        });
+
+        // Close Bottom Sheet on backdrop or close button
+        document.getElementById('bottom-sheet-backdrop')?.addEventListener('click', () => {
+          this.closeBottomSheet();
+        });
+
+        document.getElementById('btn-close-sheet')?.addEventListener('click', () => {
+          this.closeBottomSheet();
+        });
+
+        // Cart Drawer Listeners
+        document.getElementById('btn-close-cart')?.addEventListener('click', () => this.closeCartDrawer());
+        document.getElementById('cart-drawer-backdrop')?.addEventListener('click', () => this.closeCartDrawer());
+        document.getElementById('btn-checkout')?.addEventListener('click', () => {
+          this.closeCartDrawer();
+          this.showToast('Order simulated successfully!');
+        });
+
+        // Search Modal Listeners
+        document.getElementById('btn-close-search')?.addEventListener('click', () => this.closeSearchModal());
+        document.getElementById('search-modal-backdrop')?.addEventListener('click', () => this.closeSearchModal());
+
+        // Clicking canvas in preview mode exits preview mode
+        document.getElementById('website-canvas')?.addEventListener('click', () => {
+          if (this.isPreviewMode) {
+            this.togglePreviewMode(false);
+          }
+        });
+
+        // Close menus when clicking outside
+        document.addEventListener('click', (e) => {
+          if (!e.target.closest('#page-menu-popover') && !e.target.closest('#btn-page-dropdown')) {
+            this.closePageMenu();
+          }
+          if (!e.target.closest('#more-menu-popover') && !e.target.closest('#btn-more-menu')) {
+            this.closeMoreMenu();
+          }
+        });
+      }
+    };
+
+    // Initialize application when DOM is ready
+    window.addEventListener('DOMContentLoaded', () => {
+      App.init();
+    });
+  </script>
+</body>
+</html>
