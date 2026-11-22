@@ -1,7 +1,5 @@
 import type {
   AboutSection,
-  BannerSection,
-  BlockSection,
   BrandsSection,
   CatalogSection,
   CategoriesSection,
@@ -53,12 +51,6 @@ export const TEXT_COLORS = [
   { name: "Gray", value: "#6e6e73" },
   { name: "White", value: "#f5f5f7" },
   { name: "Blue", value: "#0071e3" },
-];
-
-export const QUOTES = [
-  { text: "I forget I'm wearing them.", name: "A. Shah" },
-  { text: "Clean silhouette, zero fuss.", name: "M. Lindqvist" },
-  { text: "Holds up through long travel days.", name: "J. Chen" },
 ];
 
 export const products: Product[] = [
@@ -477,23 +469,6 @@ export function createBrandsSection(id = `brands-${Date.now()}`): BrandsSection 
   };
 }
 
-export function createBannerSection(id = `banner-${Date.now()}`): BannerSection {
-  return {
-    id,
-    type: "banner",
-    name: "Banner",
-    tag: "SPECIAL OFFER",
-    title: "Mid-Season Drop · 30% Off",
-    description: "Exclusive discount on selected footwear and seasonal jackets. Limited quantity available.",
-    buttonText: "Order on WhatsApp",
-    buttonAction: "whatsapp",
-    background: "#1d1d1f",
-    textColor: "#ffffff",
-    image: PHOTOS.red,
-    template: "split",
-  };
-}
-
 export function createAboutSection(id = `about-${Date.now()}`): AboutSection {
   return {
     id,
@@ -714,33 +689,6 @@ export function createPages(): Pages {
   };
 }
 
-export function createBlock(kind: BlockSection["kind"], id = `block-${Date.now()}`): BlockSection {
-  if (kind === "reviews") {
-    return {
-      id,
-      type: "block",
-      name: "Reviews",
-      kind,
-      kicker: "Reviews",
-      title: "Quietly praised.",
-      body: "Comfort that disappears once you start walking.",
-      background: "#ffffff",
-      text: "#1d1d1f",
-    };
-  }
-  return {
-    id,
-    type: "block",
-    name: "Newsletter",
-    kind,
-    kicker: "Notes",
-    title: "First look at new drops.",
-    body: "A short note, a few times a season.",
-    background: "#ffffff",
-    text: "#1d1d1f",
-  };
-}
-
 export function isDark(hex: string) {
   const h = hex.replace("#", "").slice(0, 6);
   if (h.length < 6) return false;
@@ -768,8 +716,6 @@ export function paintTheme(page: PageModel, theme: "light" | "ink"): PageModel {
         };
       case "hero":
         return { ...sec, template: dark ? "split" : "bleed", background: bg };
-      case "intro":
-        return { ...sec, background: bg, text, kickerColor: muted };
       case "grid":
       case "featured":
       case "categories":
@@ -778,18 +724,10 @@ export function paintTheme(page: PageModel, theme: "light" | "ink"): PageModel {
       case "filter-sort":
       case "product":
         return { ...sec, background: bg };
-      case "banner":
-        return {
-          ...sec,
-          background: dark ? "#141416" : "#1d1d1f",
-          textColor: "#ffffff",
-        };
       case "about":
         return { ...sec, background: bg, text };
       case "footer":
         return { ...sec, background: soft, text: muted, template: dark ? "columns" : "minimal" };
-      case "block":
-        return { ...sec, background: bg, text };
       case "product-card":
         return sec;
       default: {

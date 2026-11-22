@@ -1,7 +1,6 @@
 import {
   ArrowUpDown,
   Compass,
-  Droplet,
   Eye,
   Film,
   Image,
@@ -10,11 +9,9 @@ import {
   Maximize2,
   MessageCircle,
   Palette,
-  Pencil,
   Pin,
   PlusCircle,
   RectangleHorizontal,
-  Settings2,
   SlidersHorizontal,
   Square,
   Tag,
@@ -73,13 +70,6 @@ export function Dock() {
           { id: "animation", label: "Animation", icon: Film, action: open("hero-animation") },
           { id: "images", label: "Images", icon: Image, action: open("hero-media") },
         ];
-      case "intro":
-        return [
-          { id: "template", label: "Template", icon: LayoutTemplate, action: open("intro-template") },
-          { id: "edit", label: "Edit", icon: Pencil, action: open("intro-text") },
-          { id: "accent", label: "Accent", icon: Palette, action: open("kicker-color") },
-          { id: "color", label: "Color", icon: Palette, action: open("section-color") },
-        ];
       case "grid":
         return [
           { id: "template", label: "Template", icon: LayoutTemplate, action: open("grid-layout") },
@@ -112,11 +102,6 @@ export function Dock() {
           { id: "template", label: "Template", icon: LayoutTemplate, action: open("brands-template") },
           { id: "color", label: "Color", icon: Palette, action: open("section-color") },
         ];
-      case "banner":
-        return [
-          { id: "template", label: "Template", icon: LayoutTemplate, action: open("banner-template") },
-          { id: "color", label: "Color", icon: Palette, action: open("section-color") },
-        ];
       case "about":
         return [
           { id: "template", label: "Template", icon: LayoutTemplate, action: open("about-template") },
@@ -147,12 +132,6 @@ export function Dock() {
       case "footer":
         return [
           { id: "template", label: "Template", icon: LayoutTemplate, action: open("footer-style") },
-          { id: "color", label: "Color", icon: Palette, action: open("section-color") },
-        ];
-      case "block":
-        return [
-          { id: "template", label: "Template", icon: LayoutTemplate, action: open("block-template") },
-          { id: "edit", label: "Edit", icon: Pencil, action: open("block-text") },
           { id: "color", label: "Color", icon: Palette, action: open("section-color") },
         ];
       default:

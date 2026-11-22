@@ -26,7 +26,6 @@ import {
 import { useEditor } from "@/lib/editor/store";
 import type { Device, PageId } from "@/lib/editor/types";
 import { cn } from "@/lib/cn";
-import { IconButton } from "@/components/editor/ui";
 
 const DEVICES: { id: Device; label: string; icon: typeof Smartphone }[] = [
   { id: "mobile", label: "Mobile", icon: Smartphone },

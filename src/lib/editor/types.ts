@@ -139,19 +139,6 @@ export interface HeroSection {
   autoplaySpeed?: number;
 }
 
-export interface IntroSection {
-  id: string;
-  type: "intro";
-  name: string;
-  kicker: string;
-  title: string;
-  body: string;
-  kickerColor: string;
-  background: string;
-  text: string;
-  template?: "standard" | "centered";
-}
-
 export interface GridSection {
   id: string;
   type: "grid";
@@ -253,21 +240,6 @@ export interface BrandsSection {
   background: string;
   template: "row" | "grid";
   items: BrandItem[];
-}
-
-export interface BannerSection {
-  id: string;
-  type: "banner";
-  name: string;
-  tag: string;
-  title: string;
-  description: string;
-  buttonText: string;
-  buttonAction: "shop" | "whatsapp";
-  background: string;
-  textColor: string;
-  image: string;
-  template: "card" | "full" | "split";
 }
 
 export interface AboutFeature {
@@ -418,19 +390,6 @@ export interface FooterSection {
   text: string;
 }
 
-export interface BlockSection {
-  id: string;
-  type: "block";
-  name: string;
-  kind: "reviews" | "newsletter";
-  kicker: string;
-  title: string;
-  body: string;
-  background: string;
-  text: string;
-  template?: "card" | "minimal";
-}
-
 export interface ProductCardSection {
   id: "product-card";
   type: "product-card";
@@ -482,18 +441,15 @@ export interface CatalogFilterState {
 export type Section =
   | NavbarSection
   | HeroSection
-  | IntroSection
   | GridSection
   | FeaturedSection
   | CategoriesSection
   | BrandsSection
-  | BannerSection
   | AboutSection
   | CatalogSection
   | FilterSortSection
   | ProductSection
   | FooterSection
-  | BlockSection
   | ProductCardSection;
 
 export interface PageModel {
@@ -532,16 +488,12 @@ export type SheetKind =
   | "hero-media"
   | "hero-photo"
   | "hero-text"
-  | "intro-text"
-  | "kicker-color"
   | "grid-layout"
   | "grid-items"
   | "catalog-text"
   | "product-text"
   | "footer-style"
-  | "block-text"
   | "section-color"
-  | "intro-template"
   | "catalog-template"
   | "catalog-filter-sort"
   | "product-template"
@@ -550,7 +502,6 @@ export type SheetKind =
   | "product-cta"
   | "product-color"
   | "product-typography"
-  | "block-template"
   | "product-card-box"
   | "product-card-image"
   | "product-card-details"
@@ -560,7 +511,6 @@ export type SheetKind =
   | "product-card-cta"
   | "categories-template"
   | "brands-template"
-  | "banner-template"
   | "about-template"
   | "featured-template";
 

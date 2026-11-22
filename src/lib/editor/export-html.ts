@@ -21,10 +21,6 @@ export function renderHtml(page: PageModel) {
       parts.push(
         `<section><img src="${esc(img ?? "")}" alt="" style="width:100%;height:420px;object-fit:cover"><div style="padding:40px 28px"><p style="color:#6e6e73">${esc(sec.kicker)}</p><h1 style="font-size:44px;letter-spacing:-.03em;margin:8px 0">${esc(sec.title)}</h1><p style="max-width:36rem;color:#6e6e73">${esc(sec.body)}</p></div></section>`,
       );
-    } else if (sec.type === "intro") {
-      parts.push(
-        `<section style="padding:24px 28px 8px"><p style="color:${esc(sec.kickerColor)};letter-spacing:.14em;text-transform:uppercase;font-size:12px">${esc(sec.kicker)}</p><h2 style="font-size:32px;letter-spacing:-.03em;margin:8px 0">${esc(sec.title)}</h2><p style="color:#6e6e73">${esc(sec.body)}</p></section>`,
-      );
     } else if (sec.type === "grid" || sec.type === "featured") {
       const cards = sec.items
         .map(
@@ -52,10 +48,6 @@ export function renderHtml(page: PageModel) {
       parts.push(
         `<section style="padding:28px;text-align:center"><h2 style="font-size:24px">${esc(sec.title)}</h2><div style="display:flex;gap:12px;justify-content:center;margin-top:16px">${brandPills}</div></section>`,
       );
-    } else if (sec.type === "banner") {
-      parts.push(
-        `<section style="padding:36px 28px;background:${esc(sec.background)};color:${esc(sec.textColor)};border-radius:24px;margin:20px 28px"><p style="font-size:12px;letter-spacing:.14em">${esc(sec.tag)}</p><h2 style="font-size:32px;margin:8px 0">${esc(sec.title)}</h2><p style="opacity:.8">${esc(sec.description)}</p></section>`,
-      );
     } else if (sec.type === "about") {
       parts.push(
         `<section style="padding:36px 28px"><p style="font-size:12px;letter-spacing:.14em;color:#6e6e73">${esc(sec.kicker)}</p><h2 style="font-size:32px;margin:8px 0">${esc(sec.title)}</h2><p style="color:#6e6e73;max-width:38rem">${esc(sec.story)}</p></section>`,
@@ -77,10 +69,6 @@ export function renderHtml(page: PageModel) {
     } else if (sec.type === "footer") {
       parts.push(
         `<footer style="padding:36px 28px;background:${esc(sec.background)};color:${esc(sec.text)};text-align:center"><strong style="letter-spacing:.14em;color:#1d1d1f">${esc(sec.brand)}</strong><p>${esc(sec.copy)}</p></footer>`,
-      );
-    } else if (sec.type === "block") {
-      parts.push(
-        `<section style="padding:36px 28px;text-align:center"><p style="letter-spacing:.14em;text-transform:uppercase;font-size:12px;color:#6e6e73">${esc(sec.kicker)}</p><h2>${esc(sec.title)}</h2><p style="color:#6e6e73">${esc(sec.body)}</p></section>`,
       );
     }
   }

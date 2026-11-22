@@ -29,7 +29,6 @@ import { selectedSection, useEditor } from "@/lib/editor/store";
 import { cn } from "@/lib/cn";
 import type {
   CatalogFilterConfig,
-  CatalogFilterStyle,
   CatalogLayoutConfig,
   CatalogSection,
   FilterSortSection,
@@ -40,11 +39,9 @@ import type {
   HeroRatio,
   HeroSection,
   HeroWidth,
-  IntroSection,
   NavbarLink,
   NavbarSection,
   NavbarTemplate,
-  PageId,
   ProductCardDetailsLayout,
   ProductCardShadow,
   ProductCardTextAlign,
@@ -54,7 +51,7 @@ import type {
   Section,
   SheetKind,
 } from "@/lib/editor/types";
-import { Field, Group, PrimaryButton, TextArea, TextInput } from "@/components/editor/ui";
+import { Field, PrimaryButton, TextArea, TextInput } from "@/components/editor/ui";
 
 const TITLES: Record<SheetKind, { title: string; subtitle: string }> = {
   arrange: { title: "Arrange Sections", subtitle: "Drag & drop or use arrows to reorder sections. Header is fixed at top." },
@@ -81,9 +78,6 @@ const TITLES: Record<SheetKind, { title: string; subtitle: string }> = {
   "hero-layout": { title: "Template", subtitle: "" },
   "hero-photo": { title: "Photo", subtitle: "Replaces the current slide." },
   "hero-text": { title: "Hero text", subtitle: "The line under the photograph." },
-  "intro-template": { title: "Template", subtitle: "" },
-  "intro-text": { title: "Intro", subtitle: "Headline and supporting line." },
-  "kicker-color": { title: "Accent", subtitle: "The small label above the headline." },
   "grid-layout": { title: "Template", subtitle: "" },
   "grid-items": { title: "Items", subtitle: "" },
   "catalog-template": { title: "Template", subtitle: "" },
@@ -97,8 +91,6 @@ const TITLES: Record<SheetKind, { title: string; subtitle: string }> = {
   "product-typography": { title: "Typography", subtitle: "Title sizing & font weights." },
   "product-text": { title: "Product", subtitle: "" },
   "footer-style": { title: "Template", subtitle: "" },
-  "block-template": { title: "Template", subtitle: "" },
-  "block-text": { title: "Section", subtitle: "Edit the words." },
   "section-color": { title: "Color", subtitle: "Background of this section." },
   "product-card-box": { title: "Card Frame", subtitle: "Borders, shadows, curves & card background." },
   "product-card-image": { title: "Image Style", subtitle: "Full-width vs inset, image curves & ratio." },
@@ -109,7 +101,6 @@ const TITLES: Record<SheetKind, { title: string; subtitle: string }> = {
   "product-card-cta": { title: "WhatsApp & Currency", subtitle: "Seller WhatsApp number and store currency." },
   "categories-template": { title: "Template", subtitle: "" },
   "brands-template": { title: "Template", subtitle: "" },
-  "banner-template": { title: "Template", subtitle: "" },
   "about-template": { title: "Template", subtitle: "" },
   "featured-template": { title: "Template", subtitle: "" },
 };
@@ -205,12 +196,6 @@ function SheetBody({ kind }: { kind: SheetKind }) {
       return section?.type === "hero" ? <HeroPhotos hero={section} /> : null;
     case "hero-text":
       return section?.type === "hero" ? <HeroText hero={section} /> : null;
-    case "intro-template":
-      return section?.type === "intro" ? <IntroTemplate current={section.template} /> : null;
-    case "intro-text":
-      return section?.type === "intro" ? <IntroText intro={section} /> : null;
-    case "kicker-color":
-      return <KickerColors />;
     case "grid-layout":
       return section?.type === "grid" ? <GridLayouts current={section.template} /> : null;
     case "catalog-template":
@@ -249,8 +234,6 @@ function SheetBody({ kind }: { kind: SheetKind }) {
       return section?.type === "categories" ? <CategoriesTemplate current={section.template} /> : null;
     case "brands-template":
       return section?.type === "brands" ? <BrandsTemplate current={section.template} /> : null;
-    case "banner-template":
-      return section?.type === "banner" ? <BannerTemplate current={section.template} /> : null;
     case "about-template":
       return section?.type === "about" ? <AboutTemplate current={section.template} /> : null;
     case "featured-template":
@@ -258,12 +241,6 @@ function SheetBody({ kind }: { kind: SheetKind }) {
     case "footer-style":
       return section?.type === "footer" ? (
         <FooterStyles current={section.template} text={section.text} />
-      ) : null;
-    case "block-template":
-      return section?.type === "block" ? <BlockTemplate current={section.template} /> : null;
-    case "block-text":
-      return section?.type === "block" ? (
-        <BlockText kicker={section.kicker} title={section.title} body={section.body} text={section.text} />
       ) : null;
     default:
       return null;
@@ -305,7 +282,6 @@ function TemplateCard({
 }
 
 function ArrangeSectionsSheet() {
-  const pageId = useEditor((s) => s.pageId);
   const page = useEditor((s) => s.pages[s.pageId]);
   const selectedId = useEditor((s) => s.selectedId);
   const sections = page?.sections || [];
@@ -336,16 +312,12 @@ function ArrangeSectionsSheet() {
         return { label: sec.title || "Categories", desc: "Category cards and shortcuts", icon: Tag };
       case "brands":
         return { label: sec.title || "Brands Showcase", desc: "Partner brands and logos", icon: Sparkles };
-      case "banner":
-        return { label: sec.title || "Promo Banner", desc: "Seasonal deal or announcement", icon: Sparkles };
       case "about":
         return { label: sec.title || "Trust & Guarantees", desc: "Store guarantees and story", icon: Shield };
       case "product":
         return { label: "Product Details", desc: "Hero view, gallery & buy CTA", icon: ShoppingBag };
       case "footer":
         return { label: "Footer", desc: "Store brand, copyright & links", icon: PanelBottom };
-      case "block":
-        return { label: sec.name || "Custom Block", desc: sec.title || "Content section", icon: Layers };
       default:
         return { label: "Store Section", desc: "Storefront section", icon: Layers };
     }
@@ -372,7 +344,7 @@ function ArrangeSectionsSheet() {
     const clientY = touch.clientY;
 
     // Scan through registered DOM elements
-    for (const [id, el] of itemRefs.current.entries()) {
+    for (const el of itemRefs.current.values()) {
       if (!el) continue;
       const rect = el.getBoundingClientRect();
       if (clientY >= rect.top && clientY <= rect.bottom) {
@@ -639,7 +611,7 @@ function AddList() {
   const pageId = useEditor((s) => s.pageId);
 
   type AddItem = {
-    kind: "hero" | "featured" | "categories" | "brands" | "banner" | "about" | "reviews" | "newsletter" | "catalog" | "product";
+    kind: "hero" | "featured" | "categories" | "brands" | "about" | "catalog" | "product";
     title: string;
     desc: string;
     badge?: string;
@@ -891,41 +863,6 @@ function NameForm({ logo, text }: { logo: string; text: string }) {
           if (color !== text) useEditor.getState().patchSelected({ text: color });
         }}
       />
-    </div>
-  );
-}
-
-function IntroTemplate({ current }: { current?: "standard" | "centered" }) {
-  const active = current ?? "standard";
-  return (
-    <div className="flex flex-col gap-3">
-      <TemplateCard
-        active={active === "standard"}
-        onClick={() => useEditor.getState().patchSelected({ template: "standard" })}
-      >
-        <div className="flex flex-col gap-2 rounded-xl border border-line-soft bg-fill/40 p-3">
-          <div className="h-3 w-1/3 rounded-full bg-slate-800" />
-          <div className="h-2 w-2/3 rounded-full bg-slate-400" />
-          <div className="mt-1 flex gap-1.5">
-            <div className="h-5 w-12 rounded-full bg-slate-300" />
-            <div className="h-5 w-12 rounded-full bg-slate-200" />
-            <div className="h-5 w-12 rounded-full bg-slate-200" />
-          </div>
-        </div>
-      </TemplateCard>
-      <TemplateCard
-        active={active === "centered"}
-        onClick={() => useEditor.getState().patchSelected({ template: "centered" })}
-      >
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-line-soft bg-fill/40 p-3 text-center">
-          <div className="h-3 w-1/2 rounded-full bg-slate-800" />
-          <div className="h-2 w-3/4 rounded-full bg-slate-400" />
-          <div className="mt-1 flex justify-center gap-1.5">
-            <div className="h-5 w-12 rounded-full bg-slate-300" />
-            <div className="h-5 w-12 rounded-full bg-slate-200" />
-          </div>
-        </div>
-      </TemplateCard>
     </div>
   );
 }
@@ -2030,32 +1967,6 @@ function ProductTypographySheet({ sec }: { sec: ProductSection }) {
           ))}
         </div>
       </div>
-    </div>
-  );
-}
-
-function BlockTemplate({ current }: { current?: "card" | "minimal" }) {
-  const active = current ?? "card";
-  return (
-    <div className="flex flex-col gap-3">
-      <TemplateCard
-        active={active === "card"}
-        onClick={() => useEditor.getState().patchSelected({ template: "card" })}
-      >
-        <div className="rounded-xl border border-line-soft bg-surface p-3 shadow-2xs">
-          <div className="h-2.5 w-1/3 rounded-full bg-slate-800" />
-          <div className="mt-2 h-2 w-3/4 rounded-full bg-slate-400" />
-        </div>
-      </TemplateCard>
-      <TemplateCard
-        active={active === "minimal"}
-        onClick={() => useEditor.getState().patchSelected({ template: "minimal" })}
-      >
-        <div className="p-3">
-          <div className="h-2.5 w-1/3 rounded-full bg-slate-800" />
-          <div className="mt-2 h-2 w-3/4 rounded-full bg-slate-400" />
-        </div>
-      </TemplateCard>
     </div>
   );
 }
@@ -4815,52 +4726,6 @@ function HeroText({ hero }: { hero: HeroSection }) {
   );
 }
 
-function IntroText({ intro }: { intro: IntroSection }) {
-  const [kicker, setKicker] = useState(intro.kicker);
-  const [title, setTitle] = useState(intro.title);
-  const [body, setBody] = useState(intro.body);
-  return (
-    <div className="flex flex-col gap-3">
-      <Field label="Label">
-        <TextInput value={kicker} onChange={(event) => setKicker(event.target.value)} />
-      </Field>
-      <Field label="Headline">
-        <TextInput value={title} onChange={(event) => setTitle(event.target.value)} />
-      </Field>
-      <Field label="Supporting line">
-        <TextArea rows={3} value={body} onChange={(event) => setBody(event.target.value)} />
-      </Field>
-      <PrimaryButton
-        onClick={() => {
-          useEditor.getState().patchSelected({ kicker, title, body });
-          useEditor.getState().closeSheet();
-        }}
-      >
-        Save
-      </PrimaryButton>
-      <TextSwatches onPick={(text) => useEditor.getState().patchSelected({ text })} />
-    </div>
-  );
-}
-
-function KickerColors() {
-  return (
-    <div className="flex gap-2">
-      {TEXT_COLORS.map((color) => (
-        <button
-          key={color.value}
-          type="button"
-          onClick={() => useEditor.getState().patchSelected({ kickerColor: color.value })}
-          className="flex flex-col items-center gap-2"
-        >
-          <span className="size-11 rounded-full border border-line" style={{ background: color.value }} />
-          <span className="text-xs text-muted">{color.name}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function GridLayouts({ current }: { current: "mosaic" | "editorial" }) {
   return (
     <div className="flex flex-col gap-3">
@@ -4927,48 +4792,6 @@ function FooterStyles({
           </div>
         </TemplateCard>
       </div>
-      <TextSwatches
-        onPick={(color) => {
-          if (color !== text) useEditor.getState().patchSelected({ text: color });
-        }}
-      />
-    </div>
-  );
-}
-
-function BlockText({
-  kicker,
-  title,
-  body,
-  text,
-}: {
-  kicker: string;
-  title: string;
-  body: string;
-  text: string;
-}) {
-  const [nextKicker, setKicker] = useState(kicker);
-  const [nextTitle, setTitle] = useState(title);
-  const [nextBody, setBody] = useState(body);
-  return (
-    <div className="flex flex-col gap-3">
-      <Field label="Label">
-        <TextInput value={nextKicker} onChange={(event) => setKicker(event.target.value)} />
-      </Field>
-      <Field label="Headline">
-        <TextInput value={nextTitle} onChange={(event) => setTitle(event.target.value)} />
-      </Field>
-      <Field label="Supporting line">
-        <TextArea rows={3} value={nextBody} onChange={(event) => setBody(event.target.value)} />
-      </Field>
-      <PrimaryButton
-        onClick={() => {
-          useEditor.getState().patchSelected({ kicker: nextKicker, title: nextTitle, body: nextBody });
-          useEditor.getState().closeSheet();
-        }}
-      >
-        Save
-      </PrimaryButton>
       <TextSwatches
         onPick={(color) => {
           if (color !== text) useEditor.getState().patchSelected({ text: color });
@@ -5054,46 +4877,6 @@ function BrandsTemplate({ current }: { current?: "row" | "grid" }) {
           <div className="h-7 rounded-lg bg-slate-200" />
           <div className="h-7 rounded-lg bg-slate-200" />
           <div className="h-7 rounded-lg bg-slate-200" />
-        </div>
-      </TemplateCard>
-    </div>
-  );
-}
-
-function BannerTemplate({ current }: { current?: "split" | "card" | "full" }) {
-  const active = current ?? "split";
-  return (
-    <div className="flex flex-col gap-3">
-      <TemplateCard
-        active={active === "split"}
-        onClick={() => useEditor.getState().patchSelected({ template: "split" })}
-      >
-        <div className="grid grid-cols-2 gap-2.5 rounded-xl border border-line-soft bg-fill/40 p-2.5">
-          <div className="h-14 rounded-lg bg-slate-300" />
-          <div className="flex flex-col justify-center space-y-1.5">
-            <div className="h-2 w-10 rounded-full bg-emerald-500" />
-            <div className="h-2.5 w-16 rounded-full bg-slate-800" />
-            <div className="h-4 w-14 rounded-full bg-emerald-500" />
-          </div>
-        </div>
-      </TemplateCard>
-      <TemplateCard
-        active={active === "card"}
-        onClick={() => useEditor.getState().patchSelected({ template: "card" })}
-      >
-        <div className="rounded-xl border border-line-soft bg-slate-900 p-3 text-white">
-          <div className="h-2 w-10 rounded-full bg-emerald-400" />
-          <div className="mt-1.5 h-2.5 w-24 rounded-full bg-white" />
-          <div className="mt-2 h-4 w-16 rounded-full bg-emerald-500" />
-        </div>
-      </TemplateCard>
-      <TemplateCard
-        active={active === "full"}
-        onClick={() => useEditor.getState().patchSelected({ template: "full" })}
-      >
-        <div className="h-16 rounded-xl bg-slate-800 p-2.5 flex flex-col justify-end">
-          <div className="h-2.5 w-24 rounded-full bg-white" />
-          <div className="mt-1.5 h-2 w-16 rounded-full bg-white/70" />
         </div>
       </TemplateCard>
     </div>

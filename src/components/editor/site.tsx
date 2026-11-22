@@ -8,9 +8,7 @@ import {
   ChevronRight,
   ChevronUp,
   Columns2,
-  LayoutGrid,
   Menu,
-  Plus,
   Search,
   ShoppingBag,
   SlidersHorizontal,
@@ -18,13 +16,10 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { isDark, money, QUOTES, PHOTOS } from "@/lib/editor/defaults";
+import { isDark, money, PHOTOS } from "@/lib/editor/defaults";
 import { selectedSection, useEditor } from "@/lib/editor/store";
 import type {
-  CatalogFilter,
   CatalogFilterConfig,
-  CatalogLayoutConfig,
-  CatalogSortConfig,
   CatalogFilterState,
   Product,
   CatalogSection,
@@ -42,8 +37,6 @@ import type {
   Section,
 } from "@/lib/editor/types";
 import { cn } from "@/lib/cn";
-
-const FILTERS: CatalogFilter[] = ["All", "Footwear", "Apparel", "Accessories"];
 
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
@@ -65,13 +58,6 @@ function solid(dark: boolean) {
   return cn(
     "inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-medium",
     dark ? "bg-on-ink text-ink" : "bg-ink text-on-ink",
-  );
-}
-
-function quiet(dark: boolean) {
-  return cn(
-    "inline-flex h-9 items-center justify-center rounded-full px-4 text-sm",
-    dark ? "bg-on-ink/10 text-on-ink" : "bg-fill text-ink",
   );
 }
 
@@ -802,51 +788,6 @@ function HeroView({
   );
 }
 
-function IntroView({
-  sec,
-  device,
-}: {
-  sec: Extract<Section, { type: "intro" }>;
-  device: Device;
-}) {
-  const dark = isDark(sec.background);
-  const preview = useEditor((s) => s.preview);
-  return (
-    <SectionShell section={sec} background={sec.background} color={sec.text}>
-      <div className={cn("flex flex-col gap-6 py-8", gutter(device), device === "desktop" && "flex-row items-end justify-between")}>
-        <div className="max-w-xl">
-          <p className="text-xs font-medium tracking-widest uppercase" style={{ color: sec.kickerColor }}>
-            {sec.kicker}
-          </p>
-          <h2 className={cn("mt-2 font-semibold tracking-tight", device === "mobile" ? "text-2xl" : "text-3xl")}>
-            {sec.title}
-          </h2>
-          <p className={cn("mt-3 text-sm leading-relaxed", dark ? "text-on-ink/70" : "text-muted")}>{sec.body}</p>
-        </div>
-        {device !== "mobile" && (
-          <div className="flex flex-wrap gap-2">
-            {FILTERS.map((filter) => (
-              <button
-                key={filter}
-                type="button"
-                onClick={(event) => {
-                  if (!preview) return;
-                  event.stopPropagation();
-                  useEditor.getState().setCatalogFilter(filter);
-                  useEditor.getState().switchPage("shop");
-                }}
-                className={quiet(dark)}
-              >
-                {filter}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </SectionShell>
-  );
-}
-
 function GridView({
   sec,
   device,
@@ -1363,14 +1304,12 @@ function CatalogSortDrawer({
   allowedSorts,
   activeSort,
   onSelectSort,
-  dark,
 }: {
   isOpen: boolean;
   onClose: () => void;
   allowedSorts: CatalogSortOption[];
   activeSort: CatalogSortOption;
   onSelectSort: (sort: CatalogSortOption) => void;
-  dark: boolean;
 }) {
   if (!isOpen) return null;
 
@@ -1461,7 +1400,6 @@ function CatalogFilterDrawer({
   onToggleInStockOnly,
   onResetAll,
   filteredCount,
-  dark,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -1478,7 +1416,6 @@ function CatalogFilterDrawer({
   onToggleInStockOnly: () => void;
   onResetAll: () => void;
   filteredCount: number;
-  dark: boolean;
 }) {
   if (!isOpen) return null;
 
@@ -1917,7 +1854,6 @@ function FilterSortView({
         allowedSorts={sortConfig.allowedSorts || ["featured", "price_asc", "price_desc", "discount_desc", "newest", "name_asc"]}
         activeSort={filterState.activeSort}
         onSelectSort={(s) => useEditor.getState().setCatalogSort(s)}
-        dark={dark}
       />
 
       <CatalogFilterDrawer
@@ -1936,7 +1872,6 @@ function FilterSortView({
         onToggleInStockOnly={() => useEditor.getState().toggleCatalogInStockOnly()}
         onResetAll={() => useEditor.getState().resetCatalogFilters()}
         filteredCount={sorted.length}
-        dark={dark}
       />
     </SectionShell>
   );
@@ -2102,7 +2037,7 @@ function ProductView({
     else if (sec.gallery && sec.gallery[0]) setActiveImage(sec.gallery[0]);
     if (sec.color) setSelectedColor(sec.color);
     if (sec.size) setSelectedSize(sec.size);
-  }, [sec.image, sec.productName, sec.color, sec.size]);
+  }, [sec.image, sec.productName, sec.color, sec.size, sec.gallery]);
 
   // Variant extraction
   const colorGroup = sec.variants?.find((v) => v.name.toLowerCase() === "color");
@@ -2749,45 +2684,6 @@ function FooterView({
   );
 }
 
-function BlockView({
-  sec,
-  device,
-}: {
-  sec: Extract<Section, { type: "block" }>;
-  device: Device;
-}) {
-  const dark = isDark(sec.background);
-  return (
-    <SectionShell section={sec} background={sec.background} color={sec.text}>
-      <div className={cn("py-10", gutter(device))}>
-        <p className={cn("text-xs font-medium tracking-widest uppercase", dark ? "text-on-ink/60" : "text-muted")}>
-          {sec.kicker}
-        </p>
-        <h2 className={cn("mt-2 font-semibold tracking-tight", device === "mobile" ? "text-2xl" : "text-3xl")}>
-          {sec.title}
-        </h2>
-        <p className={cn("mt-3 max-w-lg text-sm leading-relaxed", dark ? "text-on-ink/70" : "text-muted")}>{sec.body}</p>
-        {sec.kind === "reviews" ? (
-          <div className={cn("mt-6 grid gap-3", device === "desktop" ? "grid-cols-3" : "grid-cols-1")}>
-            {QUOTES.map((quote) => (
-              <figure key={quote.name} className={cn("rounded-2xl p-5", dark ? "bg-on-ink/10" : "bg-fill")}>
-                <blockquote className="text-sm leading-relaxed">“{quote.text}”</blockquote>
-                <figcaption className={cn("mt-4 text-xs", dark ? "text-on-ink/60" : "text-muted")}>
-                  {quote.name}
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-        ) : (
-          <div className="mt-6 max-w-md">
-            <JoinForm dark={dark} />
-          </div>
-        )}
-      </div>
-    </SectionShell>
-  );
-}
-
 function SiteMenu() {
   const open = useEditor((s) => s.menuOpen);
   const pageId = useEditor((s) => s.pageId);
@@ -2993,7 +2889,6 @@ function CategoriesView({
     }
   };
 
-  const isCards = sec.template === "cards" || !sec.template;
   const isPills = sec.template === "pills";
   const isGrid = sec.template === "grid";
 
@@ -3139,87 +3034,6 @@ function BrandsView({
   );
 }
 
-function BannerView({
-  sec,
-  device,
-}: {
-  sec: Extract<Section, { type: "banner" }>;
-  device: Device;
-}) {
-  const preview = useEditor((s) => s.preview);
-  const isCard = sec.template === "card";
-  const isFull = sec.template === "full";
-
-  const handleAction = (e: React.MouseEvent) => {
-    if (!preview) return;
-    e.stopPropagation();
-    if (sec.buttonAction === "whatsapp") {
-      const origin = typeof window !== "undefined" ? window.location.origin : "https://ziteo.site";
-      const message = `Hi! I want to claim the offer: *${sec.title}* from Ziteo.\n🔗 ${origin}`;
-      window.open(`https://wa.me/919876543210?text=${encodeURIComponent(message)}`, "_blank");
-    } else {
-      useEditor.getState().switchPage("shop");
-    }
-  };
-
-  return (
-    <SectionShell section={sec} background={sec.background} color={sec.textColor}>
-      <div className={cn(gutter(device), isCard ? "py-6" : "py-10")}>
-        <div
-          className={cn(
-            "relative overflow-hidden",
-            isCard
-              ? "rounded-3xl border border-white/15 bg-slate-900 p-6 sm:p-10 text-white shadow-xl"
-              : isFull
-                ? "rounded-none"
-                : "grid grid-cols-1 sm:grid-cols-2 gap-6 items-center"
-          )}
-        >
-          {sec.image && (
-            <div
-              className={cn(
-                "overflow-hidden rounded-2xl",
-                isCard ? "mb-4 sm:mb-0 sm:absolute sm:right-6 sm:top-6 sm:bottom-6 sm:w-64" : ""
-              )}
-            >
-              <img
-                src={sec.image}
-                alt=""
-                className={cn(
-                  "size-full object-cover",
-                  isCard ? "h-36 sm:h-full rounded-2xl" : "h-56 sm:h-72 rounded-3xl"
-                )}
-              />
-            </div>
-          )}
-
-          <div className={cn(isCard ? "relative z-10 max-w-md" : "")}>
-            <span className="inline-block rounded-full bg-[#25D366]/20 px-3 py-1 text-[10px] font-bold tracking-wider text-[#25D366] uppercase">
-              {sec.tag}
-            </span>
-            <h2 className={cn("mt-2 font-bold tracking-tight", device === "mobile" ? "text-2xl" : "text-3xl")}>
-              {sec.title}
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-white/80 max-w-md">
-              {sec.description}
-            </p>
-            <div className="mt-5">
-              <button
-                type="button"
-                onClick={handleAction}
-                className="tap-smooth inline-flex h-11 items-center gap-2 rounded-full bg-[#25D366] px-5 text-xs font-bold text-white shadow-md shadow-[#25D366]/30 hover:bg-[#20bd5a] hover:scale-105 transition-all"
-              >
-                <WhatsAppIcon className="size-4 fill-white" />
-                <span>{sec.buttonText}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </SectionShell>
-  );
-}
-
 function AboutView({
   sec,
   device,
@@ -3287,8 +3101,6 @@ function renderSection(sec: Section, device: Device) {
       return <NavbarView key={sec.id} sec={sec} device={device} />;
     case "hero":
       return <HeroView key={sec.id} sec={sec} device={device} />;
-    case "intro":
-      return <IntroView key={sec.id} sec={sec} device={device} />;
     case "grid":
       return <GridView key={sec.id} sec={sec} device={device} />;
     case "featured":
@@ -3297,8 +3109,6 @@ function renderSection(sec: Section, device: Device) {
       return <CategoriesView key={sec.id} sec={sec} device={device} />;
     case "brands":
       return <BrandsView key={sec.id} sec={sec} device={device} />;
-    case "banner":
-      return <BannerView key={sec.id} sec={sec} device={device} />;
     case "about":
       return <AboutView key={sec.id} sec={sec} device={device} />;
     case "filter-sort":
@@ -3309,8 +3119,6 @@ function renderSection(sec: Section, device: Device) {
       return <ProductView key={sec.id} sec={sec} device={device} />;
     case "footer":
       return <FooterView key={sec.id} sec={sec} device={device} />;
-    case "block":
-      return <BlockView key={sec.id} sec={sec} device={device} />;
     case "product-card":
       return null;
     default: {
@@ -3320,7 +3128,7 @@ function renderSection(sec: Section, device: Device) {
   }
 }
 
-function ProductCardStudio({ device }: { device: Device }) {
+function ProductCardStudio() {
   const [backdrop, setBackdrop] = useState<"pattern" | "light" | "dark">("pattern");
   const [cardView, setCardView] = useState<"1" | "2">("1");
   const section = useEditor((s) => selectedSection(s));
@@ -3606,7 +3414,7 @@ export function SiteFrame({ className }: { className?: string }) {
           className,
         )}
       >
-        <ProductCardStudio device={device} />
+        <ProductCardStudio />
       </div>
     );
   }

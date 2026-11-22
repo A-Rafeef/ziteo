@@ -1,8 +1,6 @@
 import { create } from "zustand";
 import {
   createAboutSection,
-  createBannerSection,
-  createBlock,
   createBrandsSection,
   createCatalogSection,
   createCategoriesSection,
@@ -17,7 +15,6 @@ import {
 } from "@/lib/editor/defaults";
 import { renderHtml } from "@/lib/editor/export-html";
 import type {
-  BlockSection,
   CartItem,
   CatalogFilter,
   CatalogFilterState,
@@ -77,17 +74,13 @@ interface EditorState extends SavedEditor {
   moveSection: (id: string, dir: -1 | 1) => void;
   reorderSection: (id: string, targetIndex: number) => void;
   deleteSection: (id: string) => void;
-  insertBlock: (kind: BlockSection["kind"]) => void;
   insertSection: (
     kind:
       | "hero"
       | "featured"
       | "categories"
       | "brands"
-      | "banner"
       | "about"
-      | "reviews"
-      | "newsletter"
       | "catalog"
       | "product",
   ) => void;
@@ -587,10 +580,6 @@ export const useEditor = create<EditorState>((set, get) => {
       );
     },
 
-    insertBlock: (kind) => {
-      get().insertSection(kind);
-    },
-
     insertSection: (kind) => {
       const pageId = get().pageId;
       let newSec: Section;
@@ -613,9 +602,6 @@ export const useEditor = create<EditorState>((set, get) => {
         case "brands":
           newSec = createBrandsSection();
           break;
-        case "banner":
-          newSec = createBannerSection();
-          break;
         case "about":
           newSec = createAboutSection();
           if (pageId === "product") {
@@ -624,12 +610,6 @@ export const useEditor = create<EditorState>((set, get) => {
             newSec.kicker = "AUTHENTICITY & CARE";
             newSec.title = "Crafted for longevity.";
           }
-          break;
-        case "reviews":
-          newSec = createBlock("reviews");
-          break;
-        case "newsletter":
-          newSec = createBlock("newsletter");
           break;
         case "catalog":
           newSec = createCatalogSection();
@@ -948,7 +928,7 @@ export const useEditor = create<EditorState>((set, get) => {
       // Strictly ensure home page has no promo banner, no about us, no reviews, no newsletter
       if (cleanPages.home && Array.isArray(cleanPages.home.sections)) {
         cleanPages.home.sections = cleanPages.home.sections.filter(
-          (s) => s.type !== "banner" && s.type !== "about" && s.type !== "block"
+          (s) => (s as { type: string }).type !== "banner" && s.type !== "about" && (s as { type: string }).type !== "block"
         );
       }
 
@@ -974,7 +954,7 @@ export const useEditor = create<EditorState>((set, get) => {
       // Strictly ensure product page has no reviews, no promo banner, no newsletter
       if (cleanPages.product && Array.isArray(cleanPages.product.sections)) {
         cleanPages.product.sections = cleanPages.product.sections.filter(
-          (s) => s.type !== "banner" && s.type !== "block"
+          (s) => (s as { type: string }).type !== "banner" && (s as { type: string }).type !== "block"
         );
       }
 
