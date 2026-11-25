@@ -1031,7 +1031,7 @@ export const useEditor = create<EditorState>((set, get) => {
       link.download = `ziteo-${pageId}.html`;
       link.click();
       URL.revokeObjectURL(url);
-      get().showToast("HTML downloaded.");
+      get().showToast("Static HTML snapshot downloaded.");
     },
 
     hydrate: (saved) => {

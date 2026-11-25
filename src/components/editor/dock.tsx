@@ -33,6 +33,7 @@ export function Dock() {
       return [
         { id: "arrange", label: "Arrange", icon: ArrowUpDown, action: open("arrange") },
         { id: "add", label: "Add", icon: PlusCircle, action: open("add") },
+        { id: "themes", label: "Themes", icon: Layers, action: open("themes") },
         { id: "color", label: "Background", icon: Palette, action: open("page-color") },
         {
           id: "preview",

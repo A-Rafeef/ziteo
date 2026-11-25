@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Copy, Minus, Plus, Search, Trash2, X } from "lucide-react";
 import { money } from "@/lib/editor/defaults";
 import { useEditor } from "@/lib/editor/store";
@@ -10,7 +10,12 @@ const EMPTY_PRODUCTS: Product[] = [];
 function catalogProducts(products: Product[], query: string) {
   const needle = query.trim().toLowerCase();
   if (!needle) return products;
-  return products.filter((item) => item.name.toLowerCase().includes(needle));
+  return products.filter(
+    (item) =>
+      item.name.toLowerCase().includes(needle) ||
+      (item.brand && item.brand.toLowerCase().includes(needle)) ||
+      (item.category && item.category.toLowerCase().includes(needle)),
+  );
 }
 
 export function Overlays() {
@@ -132,6 +137,9 @@ function SearchModal() {
     return catalog && catalog.type === "catalog" ? catalog.products : EMPTY_PRODUCTS;
   });
   const [query, setQuery] = useState("");
+  useEffect(() => {
+    if (!open) setQuery("");
+  }, [open]);
   const results = useMemo(() => catalogProducts(products, query), [products, query]);
   if (!open) return null;
 
@@ -214,7 +222,7 @@ function PublishModal() {
   const open = useEditor((s) => s.publishOpen);
   const [copied, setCopied] = useState(false);
   if (!open) return null;
-  const link = "https://ziteo.site";
+  const link = typeof window !== "undefined" ? window.location.href : "";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
@@ -225,9 +233,9 @@ function PublishModal() {
         onClick={() => useEditor.getState().closePublish()}
       />
       <div className="animate-scale-in relative w-full max-w-sm rounded-3xl bg-surface px-6 py-7 text-center shadow-frame">
-        <h2 className="text-xl font-semibold tracking-tight">Your site is live.</h2>
+        <h2 className="text-xl font-semibold tracking-tight">Share preview link</h2>
         <p className="mt-2 text-sm leading-relaxed text-muted">
-          The current pages are ready to share. Preview stays inside the editor.
+          Share this editor URL or preview the draft below. Export static HTML from the menu for an offline snapshot.
         </p>
         <div className="mt-5 flex items-center justify-between gap-2 rounded-2xl bg-fill px-3 py-2">
           <span className="truncate text-left text-sm text-muted">{link}</span>

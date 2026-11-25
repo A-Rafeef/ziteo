@@ -397,7 +397,7 @@ export function TopBar() {
               />
               <MenuRow
                 icon={Download}
-                label="Download HTML"
+                label="Export static HTML"
                 onClick={() => {
                   setMoreOpen(false);
                   useEditor.getState().exportHtml();

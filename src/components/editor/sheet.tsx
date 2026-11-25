@@ -94,6 +94,46 @@ const TITLES: Record<SheetKind, { title: string; subtitle: string }> = {
 
 export function Sheet() {
   const sheet = useEditor((s) => s.sheet);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!sheet) return;
+    triggerRef.current = document.activeElement as HTMLElement | null;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    const getFocusable = () =>
+      Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+
+    const focusables = getFocusable();
+    (focusables[0] || dialog).focus();
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const items = getFocusable();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    dialog.addEventListener("keydown", onKeyDown);
+    return () => {
+      dialog.removeEventListener("keydown", onKeyDown);
+      triggerRef.current?.focus();
+    };
+  }, [sheet]);
+
   if (!sheet) return null;
   const meta = TITLES[sheet];
 
@@ -105,13 +145,20 @@ export function Sheet() {
         className="animate-fade-in pointer-events-auto absolute inset-0 bg-transparent transition-opacity"
         onClick={() => useEditor.getState().closeSheet()}
       />
-      <div className="animate-slide-up sheet-max pointer-events-auto relative flex w-full max-w-lg flex-col overflow-hidden rounded-t-4xl border-t border-slate-200/90 bg-surface shadow-[0_-14px_45px_rgba(0,0,0,0.18)]">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sheet-dialog-title"
+        tabIndex={-1}
+        className="animate-slide-up sheet-max pointer-events-auto relative flex w-full max-w-lg flex-col overflow-hidden rounded-t-4xl border-t border-slate-200/90 bg-surface shadow-[0_-14px_45px_rgba(0,0,0,0.18)] outline-none"
+      >
         <div className="flex justify-center pt-3">
           <div className="h-1 w-10 rounded-full bg-line" />
         </div>
         <div className="flex items-start justify-between px-5 py-3">
           <div>
-            <h2 className="text-base font-semibold tracking-tight">{meta.title}</h2>
+            <h2 id="sheet-dialog-title" className="text-base font-semibold tracking-tight">{meta.title}</h2>
             {meta.subtitle ? <p className="text-xs text-muted">{meta.subtitle}</p> : null}
           </div>
           <button
@@ -1458,7 +1505,7 @@ function ProductElementsSheet({ sec }: { sec: ProductSection }) {
 }
 
 function ProductCtaSheet({ sec }: { sec: ProductSection }) {
-  const [phone, setPhone] = useState(sec.whatsappNumber || "919876543210");
+  const [phone, setPhone] = useState(sec.whatsappNumber ?? "919876543210");
   const [btnText, setBtnText] = useState(sec.buttonText || "Buy on WhatsApp");
   const currentColor = sec.buttonColor || "#25D366";
   const sticky = sec.stickyButton ?? false;
@@ -2826,23 +2873,27 @@ const CURRENCY_PRESETS = [
 
 function ProductCardCta() {
   const section = useEditor((s) => selectedSection(s));
-  const rawNumber =
-    (section && "whatsappNumber" in section && section.whatsappNumber) || "919876543210";
+  // Use stored value as-is; only fall back when truly absent (never mounted before)
+  const storedNumber =
+    section && "whatsappNumber" in section && section.whatsappNumber != null
+      ? section.whatsappNumber
+      : "919876543210";
   const rawCurrency =
     (section && "currency" in section && section.currency) || "$";
 
-  const [phone, setPhone] = useState(rawNumber);
+  const [phone, setPhone] = useState(storedNumber);
   const [currency, setCurrency] = useState(rawCurrency);
 
   useEffect(() => {
-    setPhone(rawNumber);
-  }, [rawNumber]);
+    setPhone(storedNumber);
+  }, [storedNumber]);
 
   useEffect(() => {
     setCurrency(rawCurrency);
   }, [rawCurrency]);
 
   const handleSave = () => {
+    // Persist an explicit empty string — never replace with the placeholder
     useEditor.getState().patchSelected({
       whatsappNumber: phone,
       currency,

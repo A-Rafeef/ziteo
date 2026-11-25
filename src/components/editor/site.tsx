@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowLeft,
   ArrowUpDown,
@@ -1146,6 +1147,8 @@ function StoreProductCard({
   const shadowValue = shadowEnabled && shadowStyle ? CARD_SHADOW_MAP[shadowStyle] : "none";
   const borderValue = borderEnabled ? `${borderWidth ?? 1}px solid ${borderColor || "#e2e8f0"}` : "none";
   const bgValue = cardBackground || (dark ? "#18181b" : "#ffffff");
+  // Derive text contrast from the actual card surface color (not the section bg)
+  const cardDark = isDark(bgValue);
   const effImageRadius = imageRadius !== undefined ? imageRadius : Math.max(0, borderRadius - (imageInset ? 6 : 0));
 
   const stockBadge =
@@ -1209,7 +1212,7 @@ function StoreProductCard({
                 {brand}
               </span>
             )}
-            <h3 className={cn("transition-colors group-hover:text-accent line-clamp-2 leading-snug", titleClass, dark ? "text-on-ink" : "text-ink")}>
+            <h3 className={cn("transition-colors group-hover:text-accent line-clamp-2 leading-snug", titleClass, cardDark ? "text-on-ink" : "text-ink")}>
               {title}
             </h3>
             {showPrice && (
@@ -1218,7 +1221,7 @@ function StoreProductCard({
                   {formattedActivePrice}
                 </span>
                 {hasDiscount && (
-                  <span className="text-xs text-slate-400 dark:text-slate-500 line-through font-normal">
+                  <span className={cn("text-xs line-through font-normal", cardDark ? "text-on-ink/50" : "text-slate-400")}>
                     {formattedRegularPrice}
                   </span>
                 )}
@@ -1236,10 +1239,10 @@ function StoreProductCard({
               e.stopPropagation();
               onWhatsAppClick(e);
             }}
-            className="tap-smooth inline-flex size-9 items-center justify-center rounded-full text-white hover:scale-105 transition-all shadow-xs shrink-0 cursor-pointer"
-            style={{ backgroundColor: buttonColor }}
+            className="tap-smooth inline-flex size-9 items-center justify-center rounded-full hover:scale-105 transition-all shadow-xs shrink-0 cursor-pointer"
+            style={{ backgroundColor: buttonColor, color: isDark(buttonColor) ? "#ffffff" : "#0A190F" }}
           >
-            <WhatsAppIcon className="size-4 fill-white" />
+            <WhatsAppIcon className="size-4" />
           </button>
         )}
       </article>
@@ -1353,10 +1356,10 @@ function StoreProductCard({
                     e.stopPropagation();
                     onWhatsAppClick(e);
                   }}
-                  className="tap-smooth inline-flex size-8 items-center justify-center rounded-full text-white hover:scale-105 transition-all shadow-md shrink-0 cursor-pointer"
-                  style={{ backgroundColor: buttonColor }}
+                  className="tap-smooth inline-flex size-8 items-center justify-center rounded-full hover:scale-105 transition-all shadow-md shrink-0 cursor-pointer"
+                  style={{ backgroundColor: buttonColor, color: isDark(buttonColor) ? "#ffffff" : "#0A190F" }}
                 >
-                  <WhatsAppIcon className="size-3.5 fill-white" />
+                  <WhatsAppIcon className="size-3.5" />
                 </button>
               )}
             </div>
@@ -1382,11 +1385,11 @@ function StoreProductCard({
             }}
           >
             {showBrand && brand && (
-              <span className="text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase truncate block mb-0.5">
+              <span className={cn("text-[10px] font-bold tracking-wider uppercase truncate block mb-0.5", cardDark ? "text-on-ink/50" : "text-slate-400")}>
                 {brand}
               </span>
             )}
-            <h3 className={cn("transition-colors group-hover:text-accent line-clamp-2 leading-snug", titleClass, dark ? "text-on-ink" : "text-ink")}>
+            <h3 className={cn("transition-colors group-hover:text-accent line-clamp-2 leading-snug", titleClass, cardDark ? "text-on-ink" : "text-ink")}>
               {title}
             </h3>
           </button>
@@ -1414,10 +1417,10 @@ function StoreProductCard({
                   e.stopPropagation();
                   onWhatsAppClick(e);
                 }}
-                className="tap-smooth inline-flex size-8 items-center justify-center rounded-full text-white hover:scale-105 transition-all shadow-xs shrink-0 cursor-pointer"
-                style={{ backgroundColor: buttonColor }}
+                className="tap-smooth inline-flex size-8 items-center justify-center rounded-full hover:scale-105 transition-all shadow-xs shrink-0 cursor-pointer"
+                style={{ backgroundColor: buttonColor, color: isDark(buttonColor) ? "#ffffff" : "#0A190F" }}
               >
-                <WhatsAppIcon className="size-3.5 fill-white" />
+                <WhatsAppIcon className="size-3.5" />
               </button>
             )}
           </div>
@@ -1454,7 +1457,7 @@ function CatalogSortDrawer({
   const visibleOptions = SORT_DETAILS.filter((opt) => allowedSorts.includes(opt.id));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none">
+    <div className="absolute inset-0 z-50 flex items-end justify-center pointer-events-none">
       <button
         type="button"
         aria-label="Close"
@@ -1558,7 +1561,7 @@ function CatalogFilterDrawer({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none">
+    <div className="absolute inset-0 z-50 flex items-end justify-center pointer-events-none">
       <button
         type="button"
         aria-label="Close"
@@ -2027,32 +2030,37 @@ function FilterSortView({
         )}
       </div>
 
-      {/* Tier 3: Mobile Drawers */}
-      <CatalogSortDrawer
-        isOpen={isSortDrawerOpen}
-        onClose={() => setIsSortDrawerOpen(false)}
-        allowedSorts={sortConfig.allowedSorts || ["featured", "price_asc", "price_desc", "discount_desc", "newest", "name_asc"]}
-        activeSort={filterState.activeSort}
-        onSelectSort={(s) => useEditor.getState().setCatalogSort(s)}
-      />
+      {/* Tier 3: Mobile Drawers — portaled to preview frame to escape backdrop-filter stacking context */}
+      {typeof document !== "undefined" && createPortal(
+        <>
+          <CatalogSortDrawer
+            isOpen={isSortDrawerOpen}
+            onClose={() => setIsSortDrawerOpen(false)}
+            allowedSorts={sortConfig.allowedSorts || ["featured", "price_asc", "price_desc", "discount_desc", "newest", "name_asc"]}
+            activeSort={filterState.activeSort}
+            onSelectSort={(s) => useEditor.getState().setCatalogSort(s)}
+          />
 
-      <CatalogFilterDrawer
-        isOpen={isFilterDrawerOpen}
-        onClose={() => setIsFilterDrawerOpen(false)}
-        filterConfig={filterConfig}
-        categories={dynamicCategories}
-        activeCategory={filterState.activeCategory}
-        onSelectCategory={(c) => useEditor.getState().setCatalogCategory(c)}
-        brands={availableBrands}
-        selectedBrands={filterState.selectedBrands}
-        onToggleBrand={(b) => useEditor.getState().toggleCatalogBrand(b)}
-        priceBracket={filterState.priceBracket}
-        onSelectPriceBracket={(p) => useEditor.getState().setCatalogPriceBracket(p)}
-        inStockOnly={filterState.inStockOnly}
-        onToggleInStockOnly={() => useEditor.getState().toggleCatalogInStockOnly()}
-        onResetAll={() => useEditor.getState().resetCatalogFilters()}
-        filteredCount={sorted.length}
-      />
+          <CatalogFilterDrawer
+            isOpen={isFilterDrawerOpen}
+            onClose={() => setIsFilterDrawerOpen(false)}
+            filterConfig={filterConfig}
+            categories={dynamicCategories}
+            activeCategory={filterState.activeCategory}
+            onSelectCategory={(c) => useEditor.getState().setCatalogCategory(c)}
+            brands={availableBrands}
+            selectedBrands={filterState.selectedBrands}
+            onToggleBrand={(b) => useEditor.getState().toggleCatalogBrand(b)}
+            priceBracket={filterState.priceBracket}
+            onSelectPriceBracket={(p) => useEditor.getState().setCatalogPriceBracket(p)}
+            inStockOnly={filterState.inStockOnly}
+            onToggleInStockOnly={() => useEditor.getState().toggleCatalogInStockOnly()}
+            onResetAll={() => useEditor.getState().resetCatalogFilters()}
+            filteredCount={sorted.length}
+          />
+        </>,
+        document.getElementById("site-overlay-portal") || document.body
+      )}
     </SectionShell>
   );
 }
@@ -2363,11 +2371,12 @@ function ProductView({
 
       {galleryStyle === "dots" ? (
         <div className="mt-3.5 flex items-center justify-center gap-2">
-          {galleryImages.map((img) => (
+          {galleryImages.map((img, idx) => (
             <button
               key={img}
               type="button"
-              aria-label="Photo dot"
+              aria-label={`Photo ${idx + 1} of ${galleryImages.length}`}
+              aria-pressed={img === activeImage}
               onClick={(e) => {
                 e.stopPropagation();
                 setActiveImage(img);
@@ -2384,11 +2393,12 @@ function ProductView({
         </div>
       ) : galleryStyle === "grid" ? (
         <div className="mt-3.5 grid grid-cols-4 gap-2">
-          {galleryImages.map((img) => (
+          {galleryImages.map((img, idx) => (
             <button
               key={img}
               type="button"
-              aria-label="Show photo"
+              aria-label={`Photo ${idx + 1} of ${galleryImages.length}`}
+              aria-pressed={img === activeImage}
               onClick={(event) => {
                 event.stopPropagation();
                 setActiveImage(img);
@@ -2408,11 +2418,12 @@ function ProductView({
         </div>
       ) : (
         <div className={cn("no-scrollbar mt-3.5 flex gap-2 overflow-x-auto", wide ? "" : "px-1")}>
-          {galleryImages.map((img) => (
+          {galleryImages.map((img, idx) => (
             <button
               key={img}
               type="button"
-              aria-label="Show photo"
+              aria-label={`Photo ${idx + 1} of ${galleryImages.length}`}
+              aria-pressed={img === activeImage}
               onClick={(event) => {
                 event.stopPropagation();
                 setActiveImage(img);
@@ -2653,25 +2664,32 @@ function ProductView({
       )}
 
       {/* WhatsApp Buy Button */}
-      <button
-        type="button"
-        disabled={isOutOfStock}
-        onClick={handleBuyOnWhatsApp}
-        style={{ backgroundColor: isOutOfStock ? "#94a3b8" : (sec.buttonColor || "#25D366") }}
-        className={cn(
-          "tap-smooth-sm mt-6 flex h-13 w-full items-center justify-center gap-2.5 rounded-full text-sm font-semibold text-white shadow-lg transition-all",
-          isOutOfStock
-            ? "cursor-not-allowed opacity-60"
-            : "hover:opacity-95 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
-        )}
-      >
-        <WhatsAppIcon className="size-5 fill-white" />
-        <span>
-          {isOutOfStock
-            ? "Sold Out in this Variant"
-            : `${sec.buttonText || "Buy on WhatsApp"} · ${money(currentPrice, sec.currency || "$")}`}
-        </span>
-      </button>
+      {(() => {
+        const btnBg = isOutOfStock ? "#94a3b8" : (sec.buttonColor || "#25D366");
+        // Use dark text on light backgrounds (e.g. #25D366 green) for WCAG AA contrast
+        const btnTextColor = isOutOfStock ? "#ffffff" : (isDark(btnBg) ? "#ffffff" : "#0A190F");
+        return (
+          <button
+            type="button"
+            disabled={isOutOfStock}
+            onClick={handleBuyOnWhatsApp}
+            style={{ backgroundColor: btnBg, color: btnTextColor }}
+            className={cn(
+              "tap-smooth-sm mt-6 flex h-13 w-full items-center justify-center gap-2.5 rounded-full text-sm font-semibold shadow-lg transition-all",
+              isOutOfStock
+                ? "cursor-not-allowed opacity-60"
+                : "hover:opacity-95 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+            )}
+          >
+            <WhatsAppIcon className="size-5" />
+            <span>
+              {isOutOfStock
+                ? "Sold Out in this Variant"
+                : `${sec.buttonText || "Buy on WhatsApp"} · ${money(currentPrice, sec.currency || "$")}`}
+            </span>
+          </button>
+        );
+      })()}
 
       {sec.showTrustBadges !== false && (
         <div className="mt-3 flex items-center justify-center gap-2 text-xs text-muted">
@@ -3057,21 +3075,23 @@ function CategoriesView({
 }) {
   const dark = isDark(sec.background);
   const preview = useEditor((s) => s.preview);
+  // Compute actual product counts per category from the live catalog
+  const catalogProducts = useEditor((s) => {
+    const catalog = s.pages.shop.sections.find((x) => x.type === "catalog");
+    return catalog && catalog.type === "catalog" ? catalog.products : [];
+  });
+  const getCategoryCount = (name: string): string => {
+    const count = catalogProducts.filter(
+      (p) => (p.category || "").toLowerCase() === name.toLowerCase()
+    ).length;
+    return count > 0 ? `${count} ${count === 1 ? "item" : "items"}` : "";
+  };
 
   const handleClick = (name: string) => {
     if (preview) {
       const store = useEditor.getState();
-      const catalog = store.pages.shop.sections.find((s) => s.type === "catalog");
-      const hasCategory =
-        catalog && catalog.type === "catalog"
-          ? catalog.products.some((p) => p.category.toLowerCase() === name.toLowerCase())
-          : false;
       store.resetCatalogFilters();
-      if (hasCategory) {
-        store.setCatalogFilter(name as CatalogFilter);
-      } else {
-        store.setCatalogFilter("All");
-      }
+      store.setCatalogFilter(name as CatalogFilter);
       store.switchPage("shop");
     } else {
       useEditor.getState().select(sec.id);
@@ -3120,7 +3140,7 @@ function CategoriesView({
                 <span className={cn("text-xs font-semibold group-hover:text-accent transition-colors", dark ? "text-on-ink" : "text-ink")}>
                   {cat.name}
                 </span>
-                {cat.count && <span className={cn("text-[10px] -mt-1", dark ? "text-on-ink/60" : "text-muted")}>{cat.count}</span>}
+                {getCategoryCount(cat.name) && <span className={cn("text-[10px] -mt-1", dark ? "text-on-ink/60" : "text-muted")}>{getCategoryCount(cat.name)}</span>}
               </button>
             ))}
           </div>
@@ -3141,7 +3161,7 @@ function CategoriesView({
               >
                 <img src={cat.image} alt="" className="size-6 rounded-full object-cover" />
                 <span className="text-xs font-semibold">{cat.name}</span>
-                {cat.count && <span className={cn("text-[10px]", dark ? "text-on-ink/65" : "text-muted")}>{cat.count}</span>}
+                {getCategoryCount(cat.name) && <span className={cn("text-[10px]", dark ? "text-on-ink/65" : "text-muted")}>{getCategoryCount(cat.name)}</span>}
               </button>
             ))}
           </div>
@@ -3196,8 +3216,8 @@ function CategoriesView({
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
                 <div className="absolute bottom-3 left-3 right-3 text-white">
                   <div className="text-sm font-bold tracking-tight">{cat.name}</div>
-                  {cat.count && (
-                    <div className="text-[11px] font-medium text-white/70">{cat.count}</div>
+                  {getCategoryCount(cat.name) && (
+                    <div className="text-[11px] font-medium text-white/70">{getCategoryCount(cat.name)}</div>
                   )}
                 </div>
               </button>
@@ -3357,31 +3377,37 @@ function BrandsView({
             style={{ "--marquee-duration": speedDuration } as React.CSSProperties}
           >
             <div className={marqueeClass}>
-              {marqueeItems.map((b, i) => (
-                <button
-                  key={`${b.id}-${i}`}
-                  type="button"
-                  onClick={() => handleBrandClick(b.name)}
-                  className={cn(
-                    "tap-smooth flex items-center gap-3 rounded-2xl px-6 py-3.5 mx-2 border transition-all duration-300 hover:scale-105",
-                    dark ? "bg-white/10 border-white/15 hover:bg-white/15" : "bg-surface border-line-soft hover:bg-fill/60 shadow-2xs",
-                    filterClass
-                  )}
-                >
-                  <span className={cn("text-base font-black tracking-widest", dark ? "text-on-ink" : "text-ink")}>{b.name}</span>
-                  {b.tagline && (
-                    <span
-                      className={cn(
-                        "text-[10px] font-medium border-l pl-2.5",
-                        device === "mobile" ? "hidden" : "inline",
-                        dark ? "text-on-ink/70 border-white/15" : "text-muted border-line-soft"
-                      )}
-                    >
-                      {b.tagline}
-                    </span>
-                  )}
-                </button>
-              ))}
+              {marqueeItems.map((b, i) => {
+                // Only the first copy is interactive; duplicates are decorative and hidden from a11y tree
+                const isDecorative = i >= sec.items.length;
+                return (
+                  <button
+                    key={`${b.id}-${i}`}
+                    type="button"
+                    onClick={isDecorative ? undefined : () => handleBrandClick(b.name)}
+                    tabIndex={isDecorative ? -1 : 0}
+                    aria-hidden={isDecorative ? true : undefined}
+                    className={cn(
+                      "tap-smooth flex items-center gap-3 rounded-2xl px-6 py-3.5 mx-2 border transition-all duration-300 hover:scale-105",
+                      dark ? "bg-white/10 border-white/15 hover:bg-white/15" : "bg-surface border-line-soft hover:bg-fill/60 shadow-2xs",
+                      filterClass
+                    )}
+                  >
+                    <span className={cn("text-base font-black tracking-widest", dark ? "text-on-ink" : "text-ink")}>{b.name}</span>
+                    {b.tagline && (
+                      <span
+                        className={cn(
+                          "text-[10px] font-medium border-l pl-2.5",
+                          device === "mobile" ? "hidden" : "inline",
+                          dark ? "text-on-ink/70 border-white/15" : "text-muted border-line-soft"
+                        )}
+                      >
+                        {b.tagline}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         ) : isGrid ? (
@@ -3844,6 +3870,7 @@ export function SiteFrame({ className }: { className?: string }) {
         {page.sections.map((sec) => renderSection(sec, device))}
       </div>
       <SiteMenu />
+      <div id="site-overlay-portal" />
     </div>
   );
 }
