@@ -1,4 +1,4 @@
-import { money } from "@/lib/editor/defaults";
+import { colorWithOpacity, money } from "@/lib/editor/defaults";
 import type { PageModel } from "@/lib/editor/types";
 
 function esc(value: string) {
@@ -11,10 +11,28 @@ function esc(value: string) {
 
 export function renderHtml(page: PageModel) {
   const parts: string[] = [];
+  const navSec = page.sections.find((s) => s.type === "navbar");
+  const storeName = navSec && navSec.type === "navbar" ? navSec.logo : "ZITEO";
+
   for (const sec of page.sections) {
     if (sec.type === "navbar") {
+      const bg = colorWithOpacity(sec.background, sec.backgroundOpacity ?? 100);
+      const navLinks = (sec.links ?? [
+        { id: "1", label: "Home", url: "home", visible: true },
+        { id: "2", label: "Shop", url: "shop", visible: true },
+        { id: "3", label: "Product", url: "product", visible: true },
+      ])
+        .filter((l) => l.visible !== false)
+        .map((l) => `<span style="color:${esc(sec.linkColor || sec.text)}">${esc(l.label)}</span>`)
+        .join(" · ");
+      const logoImg =
+        sec.showLogo !== false && sec.logoImage
+          ? `<img src="${esc(sec.logoImage)}" alt="${esc(sec.logo)}" style="width:28px;height:28px;border-radius:99px;object-fit:cover">`
+          : "";
+      const brandName = sec.showBrandName !== false ? `<strong style="letter-spacing:.14em">${esc(sec.logo)}</strong>` : "";
+      const radius = sec.borderRadius ? `${sec.borderRadius}px` : "0px";
       parts.push(
-        `<header style="display:flex;justify-content:space-between;align-items:center;padding:18px 28px;border-bottom:1px solid #e8e8ed"><strong style="letter-spacing:.14em">${esc(sec.logo)}</strong><nav>Collections · Shop · Product</nav></header>`,
+        `<header style="display:flex;justify-content:space-between;align-items:center;min-height:${sec.height || 56}px;padding:12px 28px;background:${esc(bg)};color:${esc(sec.text)};border-radius:${esc(radius)};border-bottom:1px solid ${esc(sec.borderColor || "#e8e8ed")}"><div style="display:flex;align-items:center;gap:8px">${logoImg}${brandName}</div>${sec.showLinks !== false ? `<nav style="display:flex;gap:14px">${navLinks}</nav>` : ""}</header>`,
       );
     } else if (sec.type === "hero") {
       const img = sec.slides[sec.active] ?? sec.slides[0];
@@ -78,7 +96,7 @@ export function renderHtml(page: PageModel) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(page.title)} · ZITEO</title>
+<title>${esc(page.title)} · ${esc(storeName)}</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
 <style>
   body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif;color:#1d1d1f;background:${esc(page.background)};}

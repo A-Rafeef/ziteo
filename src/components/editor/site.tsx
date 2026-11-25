@@ -16,9 +16,10 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { isDark, money, PHOTOS } from "@/lib/editor/defaults";
+import { colorWithOpacity, isDark, money, PHOTOS } from "@/lib/editor/defaults";
 import { selectedSection, useEditor } from "@/lib/editor/store";
 import type {
+  CatalogFilter,
   CatalogFilterConfig,
   CatalogFilterState,
   Product,
@@ -345,29 +346,117 @@ function SearchButton({ roomy, color }: { roomy: boolean; color?: string }) {
   );
 }
 
+function normalizeNavbarPage(url: string): PageId | null {
+  const clean = url.trim().toLowerCase().replace(/^\/+/, "");
+  if (clean === "" || clean === "home") return "home";
+  if (clean === "shop") return "shop";
+  if (clean === "product") return "product";
+  return null;
+}
+
+function navigateNavbarLink(url: string) {
+  const trimmed = url.trim();
+  if (!trimmed) return;
+  const targetPage = normalizeNavbarPage(trimmed);
+  if (targetPage) {
+    useEditor.getState().switchPage(targetPage);
+    return;
+  }
+  if (trimmed.startsWith("#")) {
+    const slug = trimmed.slice(1).toLowerCase();
+    const state = useEditor.getState();
+    const match = state.pages[state.pageId].sections.find(
+      (s) => s.id.toLowerCase() === slug || s.type.toLowerCase() === slug,
+    );
+    if (match) {
+      document
+        .querySelector(`[data-section-id="${match.id}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      state.setMenuOpen(false);
+    }
+    return;
+  }
+  const externalUrl = /^https?:\/\/|^mailto:|^tel:/i.test(trimmed)
+    ? trimmed
+    : trimmed.startsWith("wa.me/")
+      ? `https://${trimmed}`
+      : null;
+  if (externalUrl) {
+    window.open(externalUrl, "_blank", "noopener,noreferrer");
+    useEditor.getState().setMenuOpen(false);
+  }
+}
+
+function HeaderWhatsAppButton({
+  phone,
+  storeName,
+  color,
+  roomy,
+}: {
+  phone?: string;
+  storeName?: string;
+  color?: string;
+  roomy?: boolean;
+}) {
+  const preview = useEditor((s) => s.preview);
+  const digits = (phone || "919876543210").replace(/[^0-9]/g, "") || "919876543210";
+  const label = storeName?.trim() || "Ziteo";
+  return (
+    <button
+      type="button"
+      aria-label="Chat on WhatsApp"
+      title="Chat on WhatsApp"
+      style={color ? { color } : undefined}
+      onClick={(event) => {
+        if (!preview) return;
+        event.stopPropagation();
+        const message = `Hi! I have a question about ${label}.`;
+        window.open(`https://wa.me/${digits}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+      }}
+      className={cn(
+        "tap-smooth inline-flex items-center gap-1.5 rounded-full transition-colors font-medium",
+        roomy
+          ? "h-9 bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#128C7E] dark:text-[#25D366] px-3.5 text-xs font-semibold"
+          : "size-11 justify-center hover:bg-fill/60 text-[#128C7E] dark:text-[#25D366]",
+      )}
+    >
+      <WhatsAppIcon className="size-4 fill-current shrink-0" />
+      {roomy && <span>WhatsApp</span>}
+    </button>
+  );
+}
+
 function PageLinks({
   current,
   links,
+  fontClass,
+  weightClass,
+  trackingClass,
   caseClass,
   color,
 }: {
   current: PageId;
   links?: NavbarLink[];
+  fontClass?: string;
+  weightClass?: string;
+  trackingClass?: string;
   caseClass?: string;
   color?: string;
 }) {
   const preview = useEditor((s) => s.preview);
   const defaultLinks: NavbarLink[] = [
-    { id: "home", label: "Home", url: "home" },
-    { id: "shop", label: "Shop", url: "shop" },
-    { id: "product", label: "Product", url: "product" },
+    { id: "home", label: "Home", url: "home", visible: true },
+    { id: "shop", label: "Shop", url: "shop", visible: true },
+    { id: "product", label: "Product", url: "product", visible: true },
   ];
-  const items = links && links.length > 0 ? links : defaultLinks;
+  const items = (links && links.length > 0 ? links : defaultLinks).filter(
+    (link) => link.visible !== false,
+  );
 
   return (
-    <nav className="flex items-center gap-6">
+    <nav className="flex items-center gap-5">
       {items.map((link) => {
-        const isCurrent = link.url === current;
+        const isCurrent = normalizeNavbarPage(link.url) === current;
         return (
           <button
             key={link.id}
@@ -375,14 +464,15 @@ function PageLinks({
             onClick={(event) => {
               if (!preview) return;
               event.stopPropagation();
-              if (link.url === "home" || link.url === "shop" || link.url === "product") {
-                useEditor.getState().switchPage(link.url);
-              }
+              navigateNavbarLink(link.url);
             }}
             className={cn(
               "tap-smooth text-sm transition-opacity duration-150 hover:opacity-100",
+              fontClass,
+              weightClass,
+              trackingClass,
               caseClass,
-              isCurrent ? "font-semibold opacity-100" : "opacity-60"
+              isCurrent ? "font-semibold opacity-100" : "opacity-60",
             )}
             style={color ? { color } : undefined}
           >
@@ -403,12 +493,15 @@ function NavbarView({ sec, device }: { sec: NavbarSection; device: Device }) {
   const showLogo = sec.showLogo ?? true;
   const showBrandName = sec.showBrandName ?? true;
   const showSearch = sec.showSearch ?? true;
-  const showCart = sec.showCart ?? true;
+  const showWhatsapp = sec.showWhatsapp ?? false;
+  const showCart = sec.showCart ?? false;
   const showMenu = sec.showMenu ?? true;
   const showLinks = sec.showLinks ?? true;
   const isSticky = sec.sticky ?? true;
+  const linkColor = sec.linkColor || sec.text;
   const iconColor = sec.iconColor || sec.text;
   const isFloating = sec.isFloating ?? (sec.template === "float");
+  const bgWithOpacity = colorWithOpacity(sec.background, sec.backgroundOpacity ?? 100);
 
   const heightStyle = sec.height ? { minHeight: `${sec.height}px` } : { minHeight: "56px" };
   const radius =
@@ -499,8 +592,31 @@ function NavbarView({ sec, device }: { sec: NavbarSection; device: Device }) {
   );
 
   const actionIcons = (
-    <div className="flex items-center gap-0.5">
+    <div className="flex items-center gap-1">
       {showSearch && <SearchButton roomy={false} color={iconColor} />}
+      {showWhatsapp && (
+        <HeaderWhatsAppButton
+          phone={sec.whatsappNumber}
+          storeName={sec.logo}
+          color={iconColor}
+          roomy={false}
+        />
+      )}
+      {showCart && <BagButton count={count} color={iconColor} />}
+    </div>
+  );
+
+  const desktopActions = (
+    <div className="flex items-center gap-1.5">
+      {showSearch && <SearchButton roomy color={iconColor} />}
+      {showWhatsapp && (
+        <HeaderWhatsAppButton
+          phone={sec.whatsappNumber}
+          storeName={sec.logo}
+          color={iconColor}
+          roomy
+        />
+      )}
       {showCart && <BagButton count={count} color={iconColor} />}
     </div>
   );
@@ -510,7 +626,10 @@ function NavbarView({ sec, device }: { sec: NavbarSection; device: Device }) {
   if (sec.template === "minimal") {
     bar = (
       <div className={cn("flex items-center justify-between py-2", gutter(device))} style={heightStyle}>
-        {brandEl}
+        <div className="flex items-center gap-2">
+          {!roomy && showMenu && menuButton}
+          {brandEl}
+        </div>
         {actionIcons}
       </div>
     );
@@ -523,8 +642,7 @@ function NavbarView({ sec, device }: { sec: NavbarSection; device: Device }) {
           <span className="truncate">Search products...</span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {showSearch && <SearchButton roomy={false} color={iconColor} />}
-          {showCart && <BagButton count={count} color={iconColor} />}
+          {desktopActions}
           {!roomy && showMenu && menuButton}
         </div>
       </div>
@@ -539,15 +657,15 @@ function NavbarView({ sec, device }: { sec: NavbarSection; device: Device }) {
               <PageLinks
                 current={pageId}
                 links={sec.links}
+                fontClass={fontClass}
+                weightClass={weightClass}
+                trackingClass={trackingClass}
                 caseClass={caseClass}
-                color={sec.text}
+                color={linkColor}
               />
             )}
           </div>
-          <div className="flex items-center gap-1">
-            {showSearch && <SearchButton roomy color={iconColor} />}
-            {showCart && <BagButton count={count} color={iconColor} />}
-          </div>
+          {desktopActions}
         </div>
       );
     } else {
@@ -559,15 +677,17 @@ function NavbarView({ sec, device }: { sec: NavbarSection; device: Device }) {
               <PageLinks
                 current={pageId}
                 links={sec.links}
+                fontClass={fontClass}
+                weightClass={weightClass}
+                trackingClass={trackingClass}
                 caseClass={caseClass}
-                color={sec.text}
+                color={linkColor}
               />
             )}
           </div>
           <div className="justify-self-center">{brandEl}</div>
           <div className="flex items-center justify-end gap-1">
-            {showSearch && <SearchButton roomy color={iconColor} />}
-            {showCart && <BagButton count={count} color={iconColor} />}
+            {desktopActions}
           </div>
         </div>
       );
@@ -611,7 +731,7 @@ function NavbarView({ sec, device }: { sec: NavbarSection; device: Device }) {
               blurClass
             )}
             style={{
-              background: sec.background,
+              background: bgWithOpacity,
               color: sec.text,
               borderRadius: radius || "9999px",
               borderColor: sec.borderColor,
@@ -627,7 +747,7 @@ function NavbarView({ sec, device }: { sec: NavbarSection; device: Device }) {
   return (
     <SectionShell
       section={sec}
-      background={sec.background}
+      background={bgWithOpacity}
       color={sec.text}
       className={cn(isSticky && "sticky top-0 z-20", blurClass)}
     >
@@ -859,6 +979,7 @@ function GridView({
             stock={item.stock}
             brand={item.brand}
             image={item.image}
+            hoverImage={item.hoverImage}
             badge={item.badge}
             dark={dark}
             imageRatio={sec.imageRatio}
@@ -908,6 +1029,7 @@ interface StoreProductCardProps {
   brand?: string;
   category?: string;
   image: string;
+  hoverImage?: string;
   badge?: string;
   rating?: string;
   dark?: boolean;
@@ -950,6 +1072,7 @@ function StoreProductCard({
   stock,
   brand,
   image,
+  hoverImage,
   badge,
   dark = false,
   imageRatio = "1:1",
@@ -1168,10 +1291,21 @@ function StoreProductCard({
           src={image}
           alt=""
           className={cn(
-            "w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105",
-            ratioClass
+            "w-full object-cover transition-all duration-500 ease-out group-hover:scale-105",
+            ratioClass,
+            hoverImage ? "group-hover:opacity-0" : ""
           )}
         />
+        {hoverImage && (
+          <img
+            src={hoverImage}
+            alt=""
+            className={cn(
+              "absolute inset-0 size-full object-cover opacity-0 transition-all duration-500 ease-out group-hover:opacity-100 group-hover:scale-105",
+              ratioClass
+            )}
+          />
+        )}
 
         {/* Inner Details Layout (Overlay on Image) */}
         {detailsLayout === "inner" && (
@@ -2688,12 +2822,20 @@ function SiteMenu() {
   const open = useEditor((s) => s.menuOpen);
   const pageId = useEditor((s) => s.pageId);
   const preview = useEditor((s) => s.preview);
+  const navSec = useEditor((s) =>
+    s.pages[s.pageId].sections.find((sec) => sec.type === "navbar"),
+  );
   if (!open) return null;
-  const links: { id: PageId; label: string }[] = [
-    { id: "home", label: "Home" },
-    { id: "shop", label: "Shop" },
-    { id: "product", label: "Product" },
+  const fallbackLinks: NavbarLink[] = [
+    { id: "home", label: "Home", url: "home", visible: true },
+    { id: "shop", label: "Shop", url: "shop", visible: true },
+    { id: "product", label: "Product", url: "product", visible: true },
   ];
+  const rawLinks = navSec && navSec.type === "navbar" && navSec.links && navSec.links.length > 0
+    ? navSec.links
+    : fallbackLinks;
+  const links = rawLinks.filter((l) => l.visible !== false);
+
   return (
     <div className="absolute inset-0 z-30">
       <button
@@ -2712,22 +2854,25 @@ function SiteMenu() {
           <X className="size-5" strokeWidth={1.5} />
         </button>
         <div className="flex flex-col gap-2">
-          {links.map((link) => (
-            <button
-              key={link.id}
-              type="button"
-              onClick={() => {
-                if (!preview) return;
-                useEditor.getState().switchPage(link.id);
-              }}
-              className={cn(
-                "tap-smooth-sm py-2 text-left text-3xl font-semibold tracking-tight transition-colors duration-150",
-                link.id === pageId ? "text-ink" : "text-muted hover:text-ink",
-              )}
-            >
-              {link.label}
-            </button>
-          ))}
+          {links.map((link) => {
+            const isCurrent = normalizeNavbarPage(link.url) === pageId;
+            return (
+              <button
+                key={link.id}
+                type="button"
+                onClick={() => {
+                  if (!preview) return;
+                  navigateNavbarLink(link.url);
+                }}
+                className={cn(
+                  "tap-smooth-sm py-2 text-left text-3xl font-semibold tracking-tight transition-colors duration-150",
+                  isCurrent ? "text-ink" : "text-muted hover:text-ink",
+                )}
+              >
+                {link.label}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -2837,6 +2982,7 @@ function FeaturedView({
               stock={item.stock}
               brand={item.brand}
               image={item.image}
+              hoverImage={item.hoverImage}
               badge={item.badge}
               dark={dark}
               imageRatio={sec.imageRatio}
@@ -2884,13 +3030,27 @@ function CategoriesView({
 
   const handleClick = (name: string) => {
     if (preview) {
-      useEditor.getState().setCatalogFilter(name as any);
-      useEditor.getState().switchPage("shop");
+      const store = useEditor.getState();
+      const catalog = store.pages.shop.sections.find((s) => s.type === "catalog");
+      const hasCategory =
+        catalog && catalog.type === "catalog"
+          ? catalog.products.some((p) => p.category.toLowerCase() === name.toLowerCase())
+          : false;
+      store.resetCatalogFilters();
+      if (hasCategory) {
+        store.setCatalogFilter(name as CatalogFilter);
+      } else {
+        store.setCatalogFilter("All");
+      }
+      store.switchPage("shop");
+    } else {
+      useEditor.getState().select(sec.id);
     }
   };
 
   const isPills = sec.template === "pills";
   const isGrid = sec.template === "grid";
+  const isStory = sec.template === "story";
 
   return (
     <SectionShell section={sec} background={sec.background} color={dark ? "#f5f5f7" : "#1d1d1f"}>
@@ -2906,7 +3066,35 @@ function CategoriesView({
           </div>
         </div>
 
-        {isPills ? (
+        {isStory ? (
+          <div className="no-scrollbar flex gap-4 overflow-x-auto pb-2 justify-start sm:justify-center">
+            {sec.items.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleClick(cat.name);
+                }}
+                className="group flex flex-col items-center gap-2 shrink-0 tap-smooth focus:outline-hidden"
+              >
+                <div className="p-0.5 rounded-full bg-gradient-to-tr from-accent to-purple-500 shadow-xs group-hover:scale-105 transition-transform duration-300">
+                  <div className="p-0.5 rounded-full bg-surface">
+                    <img
+                      src={cat.image}
+                      alt=""
+                      className="size-16 sm:size-20 rounded-full object-cover"
+                    />
+                  </div>
+                </div>
+                <span className="text-xs font-semibold text-ink group-hover:text-accent transition-colors">
+                  {cat.name}
+                </span>
+                {cat.count && <span className="text-[10px] text-muted -mt-1">{cat.count}</span>}
+              </button>
+            ))}
+          </div>
+        ) : isPills ? (
           <div className="no-scrollbar flex gap-2.5 overflow-x-auto pb-1">
             {sec.items.map((cat) => (
               <button
@@ -2993,42 +3181,206 @@ function BrandsView({
   device: Device;
 }) {
   const dark = isDark(sec.background);
+  const preview = useEditor((s) => s.preview);
+  const isMarquee = sec.template === "marquee" || !sec.template;
+  const isEditorial = sec.template === "editorial";
+  const isStory = sec.template === "story";
   const isGrid = sec.template === "grid";
+
+  const handleBrandClick = (brandName: string) => {
+    if (preview) {
+      const store = useEditor.getState();
+      const catalog = store.pages.shop.sections.find((s) => s.type === "catalog");
+      const matchedBrand =
+        catalog && catalog.type === "catalog"
+          ? catalog.products.find((p) => p.brand?.toLowerCase() === brandName.toLowerCase())?.brand
+          : undefined;
+      store.resetCatalogFilters();
+      if (matchedBrand) {
+        store.toggleCatalogBrand(matchedBrand);
+      } else {
+        store.setCatalogFilter("All");
+      }
+      store.switchPage("shop");
+    } else {
+      useEditor.getState().select(sec.id);
+    }
+  };
+
+  const speedDuration =
+    sec.marqueeSpeed === "slow" ? "45s" : sec.marqueeSpeed === "fast" ? "14s" : "24s";
+  const marqueeClass =
+    sec.marqueeDirection === "right" ? "animate-marquee-right" : "animate-marquee-left";
+
+  const filterClass =
+    sec.colorFilter === "original"
+      ? "opacity-90 hover:opacity-100"
+      : sec.colorFilter === "inverted"
+      ? "invert opacity-70 hover:opacity-100 hover:invert-0"
+      : "grayscale opacity-50 hover:grayscale-0 hover:opacity-100";
+
+  // Duplicate items for marquee to ensure continuous loop
+  const marqueeItems = [...sec.items, ...sec.items, ...sec.items, ...sec.items];
 
   return (
     <SectionShell section={sec} background={sec.background} color={dark ? "#f5f5f7" : "#1d1d1f"}>
-      <div className={cn("py-8 text-center", gutter(device))}>
-        <h2 className="text-xs font-bold tracking-widest text-muted uppercase">{sec.title}</h2>
-        {sec.subtitle && (
-          <p className={cn("mt-1 text-xs", dark ? "text-on-ink/60" : "text-muted")}>
-            {sec.subtitle}
-          </p>
-        )}
-
-        <div
-          className={cn(
-            "mt-5",
-            isGrid
-              ? "grid grid-cols-2 sm:grid-cols-3 gap-2.5"
-              : "no-scrollbar flex items-center justify-center gap-3 overflow-x-auto py-1"
-          )}
-        >
-          {sec.items.map((b) => (
-            <div
-              key={b.id}
-              className={cn(
-                "tap-smooth flex flex-col items-center justify-center rounded-2xl border border-line-soft px-5 py-3 shadow-2xs transition-all hover:scale-105",
-                dark ? "bg-white/5 border-white/10" : "bg-surface hover:bg-fill/60",
-                isGrid ? "" : "shrink-0 min-w-28"
-              )}
-            >
-              <span className="text-sm font-black tracking-widest text-ink">{b.name}</span>
-              {b.tagline && (
-                <span className="text-[9px] font-medium text-muted mt-0.5">{b.tagline}</span>
-              )}
+      <div className={cn("py-10", gutter(device))}>
+        <div className="text-center max-w-xl mx-auto mb-6">
+          {sec.trustBadge && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold tracking-widest uppercase mb-2 shadow-2xs">
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              {sec.trustBadge}
             </div>
-          ))}
+          )}
+          <h2 className="text-xs font-bold tracking-widest text-muted uppercase">{sec.title}</h2>
+          {sec.subtitle && (
+            <p className={cn("mt-1 text-xs", dark ? "text-on-ink/60" : "text-muted")}>
+              {sec.subtitle}
+            </p>
+          )}
         </div>
+
+        {isEditorial ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {sec.items.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => handleBrandClick(b.name)}
+                className="group relative overflow-hidden rounded-3xl aspect-[16/10] sm:aspect-[4/3] text-left tap-smooth-sm shadow-sm border border-line-soft/40"
+              >
+                <img
+                  src={b.image || PHOTOS.sport}
+                  alt={b.name}
+                  className="size-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent p-5 flex flex-col justify-end text-white">
+                  {b.tagline && (
+                    <span className="text-[10px] font-bold text-white/70 tracking-widest uppercase mb-1">
+                      {b.tagline}
+                    </span>
+                  )}
+                  <h3 className="text-xl sm:text-2xl font-black tracking-tight">{b.name}</h3>
+                  <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-white/90 group-hover:text-white transition-colors">
+                    <span>{b.buttonText || "Shop Collection"}</span>
+                    <span className="transition-transform group-hover:translate-x-1">→</span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : isStory ? (
+          <div className="no-scrollbar flex items-center justify-start sm:justify-center gap-4 overflow-x-auto py-2">
+            {sec.items.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => handleBrandClick(b.name)}
+                className="group flex flex-col items-center gap-2 shrink-0 tap-smooth focus:outline-hidden"
+              >
+                <div className="p-0.5 rounded-full bg-gradient-to-tr from-accent to-purple-500 shadow-xs group-hover:scale-105 transition-transform duration-300">
+                  <div className="p-0.5 rounded-full bg-surface">
+                    {b.image ? (
+                      <img
+                        src={b.image}
+                        alt={b.name}
+                        className="size-16 sm:size-18 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="size-16 sm:size-18 rounded-full bg-fill/80 flex items-center justify-center font-black text-sm text-ink">
+                        {b.name.slice(0, 2)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-ink group-hover:text-accent transition-colors">
+                  {b.name}
+                </span>
+                {b.tagline && <span className="text-[9px] text-muted -mt-1.5">{b.tagline}</span>}
+              </button>
+            ))}
+          </div>
+        ) : isMarquee ? (
+          <div
+            className={cn(
+              "overflow-hidden py-3 pause-hover",
+              sec.edgeFade !== false ? "mask-edges-fade" : ""
+            )}
+            style={{ "--marquee-duration": speedDuration } as React.CSSProperties}
+          >
+            <div className={marqueeClass}>
+              {marqueeItems.map((b, i) => (
+                <button
+                  key={`${b.id}-${i}`}
+                  type="button"
+                  onClick={() => handleBrandClick(b.name)}
+                  className={cn(
+                    "tap-smooth flex items-center gap-3 rounded-2xl px-6 py-3.5 mx-2 border border-line-soft transition-all duration-300 hover:scale-105",
+                    dark ? "bg-white/5 border-white/10" : "bg-surface hover:bg-fill/60 shadow-2xs",
+                    filterClass
+                  )}
+                >
+                  <span className="text-base font-black tracking-widest text-ink">{b.name}</span>
+                  {b.tagline && (
+                    <span className="hidden sm:inline text-[10px] font-medium text-muted border-l border-line-soft pl-2.5">
+                      {b.tagline}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : isGrid ? (
+          <div
+            className={cn(
+              "grid gap-3",
+              sec.columns === 2
+                ? "grid-cols-2"
+                : sec.columns === 4
+                ? "grid-cols-2 sm:grid-cols-4"
+                : sec.columns === 6
+                ? "grid-cols-3 sm:grid-cols-6"
+                : "grid-cols-2 sm:grid-cols-3"
+            )}
+          >
+            {sec.items.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => handleBrandClick(b.name)}
+                className={cn(
+                  "tap-smooth flex flex-col items-center justify-center rounded-2xl border border-line-soft p-5 text-center shadow-2xs transition-all hover:scale-105",
+                  dark ? "bg-white/5 border-white/10" : "bg-surface hover:bg-fill/60",
+                  filterClass
+                )}
+              >
+                <span className="text-base font-black tracking-widest text-ink">{b.name}</span>
+                {b.tagline && (
+                  <span className="text-[10px] font-medium text-muted mt-1">{b.tagline}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="no-scrollbar flex items-center justify-center gap-3 overflow-x-auto py-1">
+            {sec.items.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => handleBrandClick(b.name)}
+                className={cn(
+                  "tap-smooth flex flex-col items-center justify-center rounded-2xl border border-line-soft px-5 py-3 shadow-2xs transition-all hover:scale-105 shrink-0 min-w-28",
+                  dark ? "bg-white/5 border-white/10" : "bg-surface hover:bg-fill/60"
+                )}
+              >
+                <span className="text-sm font-black tracking-widest text-ink">{b.name}</span>
+                {b.tagline && (
+                  <span className="text-[9px] font-medium text-muted mt-0.5">{b.tagline}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </SectionShell>
   );

@@ -239,3 +239,42 @@
 .animate-page-enter {
   animation: pageEnter 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+@keyframes marqueeLeft {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes marqueeRight {
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(0%);
+  }
+}
+
+.animate-marquee-left {
+  display: flex;
+  width: max-content;
+  animation: marqueeLeft var(--marquee-duration, 25s) linear infinite;
+}
+
+.animate-marquee-right {
+  display: flex;
+  width: max-content;
+  animation: marqueeRight var(--marquee-duration, 25s) linear infinite;
+}
+
+.pause-hover:hover {
+  animation-play-state: paused;
+}
+
+.mask-edges-fade {
+  mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
+}

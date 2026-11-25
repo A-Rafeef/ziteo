@@ -3,31 +3,29 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  Compass,
   GripVertical,
   Image,
   Layers,
   LayoutGrid,
-  Menu,
   PanelBottom,
   PanelTop,
   Pin,
   Plus,
-  Search,
   Shield,
   ShoppingBag,
-  Sliders,
   SlidersHorizontal,
   Sparkles,
   Tag,
   Trash2,
-  Type,
   X,
 } from "lucide-react";
 import { HERO_PHOTOS, PAGE_COLORS, TEXT_COLORS, isDark } from "@/lib/editor/defaults";
 import { selectedSection, useEditor } from "@/lib/editor/store";
 import { cn } from "@/lib/cn";
 import type {
+  BrandItem,
+  BrandsSection,
+  BrandTemplate,
   CatalogFilterConfig,
   CatalogLayoutConfig,
   CatalogSection,
@@ -39,9 +37,6 @@ import type {
   HeroRatio,
   HeroSection,
   HeroWidth,
-  NavbarLink,
-  NavbarSection,
-  NavbarTemplate,
   ProductCardDetailsLayout,
   ProductCardShadow,
   ProductCardTextAlign,
@@ -51,23 +46,13 @@ import type {
   Section,
   SheetKind,
 } from "@/lib/editor/types";
-import { Field, PrimaryButton, TextArea, TextInput } from "@/components/editor/ui";
+import { Field, Group, PrimaryButton, TextArea, TextInput } from "@/components/editor/ui";
 
 const TITLES: Record<SheetKind, { title: string; subtitle: string }> = {
   arrange: { title: "Arrange Sections", subtitle: "Drag & drop or use arrows to reorder sections. Header is fixed at top." },
   themes: { title: "Template", subtitle: "" },
   add: { title: "Add section", subtitle: "Place it above the footer." },
   "page-color": { title: "Background", subtitle: "The canvas behind every section." },
-  "navbar-style": { title: "Template", subtitle: "" },
-  "navbar-name": { title: "Name", subtitle: "Used in the bar and the footer." },
-  "navbar-color": { title: "Colors", subtitle: "Background, text & icon colors." },
-  "navbar-sticky": { title: "Sticky header", subtitle: "Pin header to top while scrolling." },
-  "navbar-elements": { title: "Elements", subtitle: "Toggle brand, menu, search & icons." },
-  "navbar-layout": { title: "Layout", subtitle: "Full-width or floating pill, height & radius." },
-  "navbar-effects": { title: "Effects", subtitle: "Border styles, shadows & frosted blur." },
-  "navbar-typography": { title: "Typography", subtitle: "Font size, weight, spacing & casing." },
-  "navbar-links": { title: "Links", subtitle: "Manage store navigation menu items." },
-  "navbar-more": { title: "Edit More", subtitle: "Layout, borders, typography & behavior." },
   "hero-width": { title: "Banner Width", subtitle: "Full-width or spaced margins." },
   "hero-background": { title: "Background", subtitle: "Color behind banner (default transparent)." },
   "hero-ratio": { title: "Aspect Ratio", subtitle: "Image height & proportions." },
@@ -100,7 +85,9 @@ const TITLES: Record<SheetKind, { title: string; subtitle: string }> = {
   "product-card-color": { title: "Card Colors", subtitle: "Price color and WhatsApp button styling." },
   "product-card-cta": { title: "WhatsApp & Currency", subtitle: "Seller WhatsApp number and store currency." },
   "categories-template": { title: "Template", subtitle: "" },
-  "brands-template": { title: "Template", subtitle: "" },
+  "brands-template": { title: "Brands Layout", subtitle: "Marquee ticker, Editorial, Grid & Stories" },
+  "brands-style": { title: "Brand Settings", subtitle: "Speed, filters, direction & trust badge" },
+  "brands-items": { title: "Brand Items", subtitle: "Manage logos, titles & images" },
   "about-template": { title: "Template", subtitle: "" },
   "featured-template": { title: "Template", subtitle: "" },
 };
@@ -156,26 +143,6 @@ function SheetBody({ kind }: { kind: SheetKind }) {
     case "page-color":
     case "section-color":
       return <ColorList target={kind} />;
-    case "navbar-style":
-      return section?.type === "navbar" ? <NavbarStyles sec={section} /> : null;
-    case "navbar-name":
-      return section?.type === "navbar" ? <NameForm logo={section.logo} text={section.text} /> : null;
-    case "navbar-color":
-      return section?.type === "navbar" ? <NavbarColor sec={section} /> : null;
-    case "navbar-sticky":
-      return section?.type === "navbar" ? <NavbarSticky current={section.sticky ?? true} /> : null;
-    case "navbar-elements":
-      return section?.type === "navbar" ? <NavbarElements sec={section} /> : null;
-    case "navbar-layout":
-      return section?.type === "navbar" ? <NavbarLayout sec={section} /> : null;
-    case "navbar-effects":
-      return section?.type === "navbar" ? <NavbarEffects sec={section} /> : null;
-    case "navbar-typography":
-      return section?.type === "navbar" ? <NavbarTypography sec={section} /> : null;
-    case "navbar-links":
-      return section?.type === "navbar" ? <NavbarLinks sec={section} /> : null;
-    case "navbar-more":
-      return section?.type === "navbar" ? <NavbarMore sec={section} /> : null;
     case "hero-width":
       return section?.type === "hero" ? <HeroWidthSheet hero={section} /> : null;
     case "hero-background":
@@ -234,6 +201,10 @@ function SheetBody({ kind }: { kind: SheetKind }) {
       return section?.type === "categories" ? <CategoriesTemplate current={section.template} /> : null;
     case "brands-template":
       return section?.type === "brands" ? <BrandsTemplate current={section.template} /> : null;
+    case "brands-style":
+      return section?.type === "brands" ? <BrandsStyle section={section} /> : null;
+    case "brands-items":
+      return section?.type === "brands" ? <BrandsItems section={section} /> : null;
     case "about-template":
       return section?.type === "about" ? <AboutTemplate current={section.template} /> : null;
     case "featured-template":
@@ -717,152 +688,6 @@ function TextSwatches({ onPick }: { onPick: (value: string) => void }) {
           />
         ))}
       </div>
-    </div>
-  );
-}
-
-const NAV_STYLES: NavbarTemplate[] = ["centered", "left", "minimal", "float", "expanded"];
-
-function NavbarStyles({ sec }: { sec: NavbarSection }) {
-  const current = sec.template;
-  const count = useEditor((s) => s.cart.reduce((sum, item) => sum + item.qty, 0));
-  const logo = sec.logo || "STORE";
-  const iconColor = sec.iconColor || sec.text;
-
-  const renderPreview = (id: NavbarTemplate) => {
-    if (id === "minimal") {
-      return (
-        <div
-          className="flex items-center justify-between rounded-xl border border-line-soft/80 px-3 py-2.5 text-xs shadow-2xs"
-          style={{ background: sec.background, color: sec.text }}
-        >
-          <div className="font-bold tracking-widest text-[11px] uppercase truncate pr-2">
-            {logo}
-          </div>
-          <div className="flex items-center gap-1 shrink-0" style={{ color: iconColor }}>
-            <ShoppingBag className="size-3.5" strokeWidth={1.75} />
-            <span className="text-[10px] font-semibold">{count}</span>
-          </div>
-        </div>
-      );
-    }
-
-    if (id === "float") {
-      return (
-        <div className="rounded-xl border border-line-soft/50 bg-fill/40 p-1.5">
-          <div
-            className="relative flex items-center justify-between rounded-full border border-line-soft px-3 py-1.5 text-xs shadow-xs"
-            style={{ background: sec.background, color: sec.text }}
-          >
-            <Menu className="size-3.5 shrink-0 opacity-80" strokeWidth={1.75} style={{ color: iconColor }} />
-            <div className="font-bold tracking-widest text-[11px] uppercase truncate px-2">
-              {logo}
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0" style={{ color: iconColor }}>
-              <Search className="size-3.5" strokeWidth={1.75} />
-              <div className="flex items-center gap-0.5">
-                <ShoppingBag className="size-3.5" strokeWidth={1.75} />
-                <span className="text-[10px] font-semibold">{count}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (id === "left") {
-      return (
-        <div
-          className="flex items-center justify-between rounded-xl border border-line-soft/80 px-3 py-2 text-xs shadow-2xs"
-          style={{ background: sec.background, color: sec.text }}
-        >
-          <div className="flex items-center gap-2 min-w-0 pr-2">
-            <Menu className="size-3.5 shrink-0 opacity-80" strokeWidth={1.75} style={{ color: iconColor }} />
-            <div className="font-bold tracking-widest text-[11px] uppercase truncate">
-              {logo}
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0" style={{ color: iconColor }}>
-            <Search className="size-3.5" strokeWidth={1.75} />
-            <div className="flex items-center gap-0.5">
-              <ShoppingBag className="size-3.5" strokeWidth={1.75} />
-              <span className="text-[10px] font-semibold">{count}</span>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (id === "expanded") {
-      return (
-        <div
-          className="flex items-center justify-between gap-2 rounded-xl border border-line-soft/80 px-3 py-2 text-xs shadow-2xs"
-          style={{ background: sec.background, color: sec.text }}
-        >
-          <div className="font-bold tracking-widest text-[11px] uppercase truncate shrink-0">
-            {logo}
-          </div>
-          <div className="flex-1 flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-200/50 dark:bg-white/10 text-[9px] text-muted truncate border border-line-soft/40">
-            <Search className="size-2.5 shrink-0" strokeWidth={1.75} style={{ color: iconColor }} />
-            <span className="truncate">Search...</span>
-          </div>
-          <div className="flex items-center gap-1 shrink-0" style={{ color: iconColor }}>
-            <ShoppingBag className="size-3.5" strokeWidth={1.75} />
-            <span className="text-[10px] font-semibold">{count}</span>
-          </div>
-        </div>
-      );
-    }
-
-    // Centered
-    return (
-      <div
-        className="relative flex items-center justify-between rounded-xl border border-line-soft/80 px-3 py-2 text-xs shadow-2xs"
-        style={{ background: sec.background, color: sec.text }}
-      >
-        <Menu className="size-3.5 shrink-0 opacity-80" strokeWidth={1.75} style={{ color: iconColor }} />
-        <div className="font-bold tracking-widest text-[11px] uppercase truncate px-2">
-          {logo}
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0" style={{ color: iconColor }}>
-          <Search className="size-3.5" strokeWidth={1.75} />
-          <div className="flex items-center gap-0.5">
-            <ShoppingBag className="size-3.5" strokeWidth={1.75} />
-            <span className="text-[10px] font-semibold">{count}</span>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div className="flex flex-col gap-3">
-      {NAV_STYLES.map((id) => (
-        <TemplateCard
-          key={id}
-          active={current === id}
-          onClick={() => useEditor.getState().patchSelected({ template: id })}
-        >
-          {renderPreview(id)}
-        </TemplateCard>
-      ))}
-    </div>
-  );
-}
-
-function NameForm({ logo, text }: { logo: string; text: string }) {
-  const [value, setValue] = useState(logo);
-  return (
-    <div className="flex flex-col gap-3">
-      <Field label="Brand">
-        <TextInput value={value} onChange={(event) => setValue(event.target.value)} />
-      </Field>
-      <PrimaryButton onClick={() => useEditor.getState().setLogo(value)}>Save name</PrimaryButton>
-      <TextSwatches
-        onPick={(color) => {
-          if (color !== text) useEditor.getState().patchSelected({ text: color });
-        }}
-      />
     </div>
   );
 }
@@ -3102,1063 +2927,6 @@ function ProductCardCta() {
   );
 }
 
-function NavbarSticky({ current }: { current: boolean }) {
-  return (
-    <div className="flex flex-col gap-3">
-      <TemplateCard
-        active={current}
-        onClick={() => useEditor.getState().patchSelected({ sticky: true })}
-      >
-        <div className="flex items-center justify-between rounded-xl border border-line-soft bg-fill/40 p-2.5">
-          <div className="text-xs font-semibold text-slate-800">Sticky (Pinned to top)</div>
-          <div className="h-1.5 w-12 rounded-full bg-accent" />
-        </div>
-      </TemplateCard>
-      <TemplateCard
-        active={!current}
-        onClick={() => useEditor.getState().patchSelected({ sticky: false })}
-      >
-        <div className="flex items-center justify-between rounded-xl border border-line-soft bg-fill/40 p-2.5">
-          <div className="text-xs font-semibold text-slate-800">Static (Scrollable)</div>
-          <div className="h-1.5 w-12 rounded-full bg-slate-300" />
-        </div>
-      </TemplateCard>
-    </div>
-  );
-}
-
-function NavbarColor({ sec, text }: { sec?: NavbarSection; text?: string }) {
-  const [tab, setTab] = useState<"background" | "text" | "iconColor">("background");
-  const currentSec = sec || { background: "#ffffff", text: text || "#1d1d1f", iconColor: text || "#1d1d1f" };
-
-  const currentColor =
-    tab === "background"
-      ? (currentSec.background || "#ffffff")
-      : tab === "text"
-      ? (currentSec.text || "#1d1d1f")
-      : (currentSec.iconColor || currentSec.text || "#1d1d1f");
-
-  const bgPalettes = [
-    { name: "Clean White", value: "#ffffff" },
-    { name: "Soft Cream", value: "#fbfbfd" },
-    { name: "Warm Linen", value: "#f7f4ed" },
-    { name: "Cool Mist", value: "#f1f5f9" },
-    { name: "Pure Ink", value: "#0b0b0d" },
-    { name: "Midnight", value: "#0f172a" },
-    { name: "Deep Navy", value: "#0a192f" },
-    { name: "Forest", value: "#064e3b" },
-    { name: "Royal Violet", value: "#2e1065" },
-    { name: "Wine Rose", value: "#4c0519" },
-  ];
-
-  const textPalettes = [
-    { name: "Jet Black", value: "#111827" },
-    { name: "Slate Dark", value: "#334155" },
-    { name: "Muted Gray", value: "#64748b" },
-    { name: "Pure White", value: "#ffffff" },
-    { name: "Royal Purple", value: "#53389e" },
-    { name: "Vibrant Blue", value: "#0071e3" },
-    { name: "Emerald Green", value: "#16a34a" },
-    { name: "Crimson Red", value: "#dc2626" },
-    { name: "Warm Amber", value: "#d97706" },
-    { name: "Rose Pink", value: "#e11d48" },
-  ];
-
-  const palettes = tab === "background" ? bgPalettes : textPalettes;
-
-  const setColor = (val: string) => {
-    useEditor.getState().patchSelected({ [tab]: val });
-  };
-
-  return (
-    <div className="flex flex-col gap-4">
-      {/* 3 Tabs: Background, Text, Icons */}
-      <div className="flex rounded-2xl bg-fill p-1 border border-line-soft">
-        {(["background", "text", "iconColor"] as const).map((t) => {
-          const active = tab === t;
-          const label = t === "background" ? "Background" : t === "text" ? "Text" : "Icons";
-          return (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTab(t)}
-              className={cn(
-                "flex-1 py-2 text-xs font-semibold rounded-xl transition-all duration-150",
-                active ? "bg-surface text-ink shadow-xs border border-line/60" : "text-muted hover:text-ink"
-              )}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Interactive Color Picker & Live Hex Input */}
-      <div className="flex items-center gap-3 p-3.5 rounded-2xl border border-line-soft bg-surface shadow-2xs">
-        <label className="relative flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-2xl border-2 border-line shadow-xs overflow-hidden transition-transform active:scale-95">
-          <input
-            type="color"
-            value={currentColor.startsWith("#") && currentColor.length === 7 ? currentColor : "#ffffff"}
-            onChange={(e) => setColor(e.target.value)}
-            className="absolute inset-0 size-full opacity-0 cursor-pointer"
-          />
-          <span
-            className="size-full"
-            style={{ background: currentColor }}
-          />
-        </label>
-        <div className="flex-1 min-w-0">
-          <label className="text-[11px] font-semibold uppercase tracking-wider text-muted">
-            {tab === "background" ? "Background Color" : tab === "text" ? "Text Color" : "Icon Color"}
-          </label>
-          <div className="relative mt-1 flex items-center">
-            <span className="absolute left-3 text-xs font-mono text-muted">#</span>
-            <input
-              type="text"
-              value={currentColor.replace(/^#/, "")}
-              onChange={(e) => {
-                const hex = `#${e.target.value.replace(/[^0-9A-Fa-f]/g, "").slice(0, 8)}`;
-                setColor(hex);
-              }}
-              placeholder="1d1d1f"
-              className="w-full rounded-xl border border-line-soft bg-fill/50 pl-7 pr-3 py-1.5 text-xs font-mono uppercase tracking-wider text-ink focus:border-accent focus:bg-surface focus:outline-hidden"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Preset Swatches Palette */}
-      <div>
-        <p className="mb-2 text-xs font-semibold text-muted uppercase tracking-wider">
-          Curated Palettes
-        </p>
-        <div className="grid grid-cols-5 gap-2">
-          {palettes.map((c) => {
-            const active = currentColor.toLowerCase() === c.value.toLowerCase();
-            return (
-              <button
-                key={c.value}
-                type="button"
-                onClick={() => setColor(c.value)}
-                className="tap-smooth group flex flex-col items-center gap-1.5 p-2 rounded-2xl border border-line-soft hover:bg-fill/70 transition-all"
-              >
-                <span
-                  className={cn(
-                    "size-8 rounded-full border border-line shadow-xs transition-transform group-hover:scale-105 flex items-center justify-center",
-                    active && "ring-2 ring-accent ring-offset-2"
-                  )}
-                  style={{ background: c.value }}
-                >
-                  {active && (
-                    <Check
-                      className={cn(
-                        "size-3.5 stroke-[2.5]",
-                        c.value === "#ffffff" || c.value === "#fbfbfd" || c.value === "#f7f4ed" || c.value === "#f1f5f9"
-                          ? "text-slate-900"
-                          : "text-white"
-                      )}
-                    />
-                  )}
-                </span>
-                <span className="text-[10px] font-medium text-muted truncate max-w-full group-hover:text-ink">
-                  {c.name}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function NavbarElements({ sec }: { sec: NavbarSection }) {
-  const [logoVal, setLogoVal] = useState(sec.logo);
-
-  const toggles = [
-    {
-      key: "showLogo",
-      label: "Brand Logo",
-      detail: "Show logo image or monogram mark",
-      enabled: sec.showLogo ?? true,
-    },
-    {
-      key: "showBrandName",
-      label: "Brand Name Text",
-      detail: "Display store name in navbar",
-      enabled: sec.showBrandName ?? true,
-    },
-    {
-      key: "showMenu",
-      label: "Mobile Menu Button",
-      detail: "Display hamburger drawer button on mobile",
-      enabled: sec.showMenu ?? true,
-    },
-    {
-      key: "showSearch",
-      label: "Search Action",
-      detail: "Display search icon or search bar",
-      enabled: sec.showSearch ?? true,
-    },
-    {
-      key: "showCart",
-      label: "WhatsApp / Bag Icon",
-      detail: "Direct order action or cart icon",
-      enabled: sec.showCart ?? true,
-    },
-    {
-      key: "showLinks",
-      label: "Page Navigation Links",
-      detail: "Show Home, Shop & Product links",
-      enabled: sec.showLinks ?? true,
-    },
-  ] as const;
-
-  return (
-    <div className="flex flex-col gap-4">
-      {/* Brand Name Input */}
-      <div className="flex flex-col gap-2 rounded-2xl border border-line-soft bg-surface p-3.5 shadow-2xs">
-        <label className="text-xs font-semibold text-muted uppercase tracking-wider">
-          Brand Name
-        </label>
-        <input
-          type="text"
-          value={logoVal}
-          onChange={(e) => {
-            setLogoVal(e.target.value);
-            useEditor.getState().patchSelected({ logo: e.target.value });
-          }}
-          placeholder="Store Name"
-          className="rounded-xl border border-line-soft bg-fill/50 px-3 py-2 text-sm font-medium text-ink focus:border-accent focus:bg-surface focus:outline-hidden"
-        />
-      </div>
-
-      {/* Elements Visibility Toggles */}
-      <div>
-        <p className="mb-2 text-xs font-semibold text-muted uppercase tracking-wider">
-          Header Elements
-        </p>
-        <div className="divide-y divide-line-soft overflow-hidden rounded-2xl border border-line-soft bg-surface shadow-2xs">
-          {toggles.map((item) => (
-            <div key={item.key} className="flex items-center justify-between p-3.5">
-              <div className="pr-3">
-                <div className="text-sm font-semibold text-ink">{item.label}</div>
-                <div className="text-xs text-muted">{item.detail}</div>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={item.enabled}
-                onClick={() =>
-                  useEditor.getState().patchSelected({ [item.key]: !item.enabled })
-                }
-                className={cn(
-                  "tap-smooth relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
-                  item.enabled ? "bg-accent" : "bg-slate-200 dark:bg-zinc-700"
-                )}
-              >
-                <span
-                  className={cn(
-                    "pointer-events-none inline-block size-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
-                    item.enabled ? "translate-x-5" : "translate-x-0"
-                  )}
-                />
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function NavbarMore({ sec }: { sec: NavbarSection }) {
-  const [openSection, setOpenSection] = useState<string | null>("layout");
-
-  const toggle = (id: string) => {
-    setOpenSection((cur) => (cur === id ? null : id));
-  };
-
-  const defaultLinks: NavbarLink[] = [
-    { id: "1", label: "Home", url: "home" },
-    { id: "2", label: "Shop", url: "shop" },
-    { id: "3", label: "Product", url: "product" },
-  ];
-
-  const currentLinks = sec.links && sec.links.length > 0 ? sec.links : defaultLinks;
-
-  return (
-    <div className="flex flex-col gap-3">
-      {/* 1. Layout & Shape */}
-      <div className="overflow-hidden rounded-2xl border border-line-soft bg-surface shadow-2xs">
-        <button
-          type="button"
-          onClick={() => toggle("layout")}
-          className="flex w-full items-center justify-between p-3.5 text-left transition-colors hover:bg-fill/60"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-7 items-center justify-center rounded-xl bg-fill text-ink">
-              <Sliders className="size-4" />
-            </div>
-            <span className="text-sm font-semibold text-ink">Layout & Shape</span>
-          </div>
-          <ChevronDown
-            className={cn("size-4 text-muted transition-transform duration-200", openSection === "layout" && "rotate-180")}
-          />
-        </button>
-        {openSection === "layout" && (
-          <div className="border-t border-line-soft p-3.5 space-y-4">
-            {/* Full-width vs Floating Pill */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted">Layout Mode</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => useEditor.getState().patchSelected({ isFloating: false })}
-                  className={cn(
-                    "py-2 text-xs font-semibold rounded-xl border text-center transition-all",
-                    !sec.isFloating
-                      ? "border-accent bg-accent/10 text-accent font-bold"
-                      : "border-line-soft bg-surface text-ink hover:bg-fill"
-                  )}
-                >
-                  Full Width
-                </button>
-                <button
-                  type="button"
-                  onClick={() => useEditor.getState().patchSelected({ isFloating: true })}
-                  className={cn(
-                    "py-2 text-xs font-semibold rounded-xl border text-center transition-all",
-                    sec.isFloating
-                      ? "border-accent bg-accent/10 text-accent font-bold"
-                      : "border-line-soft bg-surface text-ink hover:bg-fill"
-                  )}
-                >
-                  Floating Pill
-                </button>
-              </div>
-            </div>
-
-            {/* Height Slider */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between text-xs font-medium">
-                <span className="text-muted">Bar Height</span>
-                <span className="font-semibold text-ink">{sec.height || 56}px</span>
-              </div>
-              <input
-                type="range"
-                min={48}
-                max={80}
-                step={2}
-                value={sec.height || 56}
-                onChange={(e) => useEditor.getState().patchSelected({ height: Number(e.target.value) })}
-                className="accent-accent w-full cursor-pointer"
-              />
-            </div>
-
-            {/* Corner Radius Slider */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between text-xs font-medium">
-                <span className="text-muted">Corner Radius</span>
-                <span className="font-semibold text-ink">
-                  {sec.borderRadius === 9999 ? "Full Pill" : `${sec.borderRadius ?? (sec.isFloating ? 9999 : 0)}px`}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="range"
-                  min={0}
-                  max={40}
-                  step={2}
-                  value={sec.borderRadius === 9999 ? 40 : (sec.borderRadius ?? (sec.isFloating ? 40 : 0))}
-                  onChange={(e) => useEditor.getState().patchSelected({ borderRadius: Number(e.target.value) })}
-                  className="accent-accent flex-1 cursor-pointer"
-                />
-                <button
-                  type="button"
-                  onClick={() => useEditor.getState().patchSelected({ borderRadius: 9999 })}
-                  className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-fill hover:bg-line-soft text-ink shrink-0"
-                >
-                  Pill
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 2. Borders & Effects */}
-      <div className="overflow-hidden rounded-2xl border border-line-soft bg-surface shadow-2xs">
-        <button
-          type="button"
-          onClick={() => toggle("borders")}
-          className="flex w-full items-center justify-between p-3.5 text-left transition-colors hover:bg-fill/60"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-7 items-center justify-center rounded-xl bg-fill text-ink">
-              <Layers className="size-4" />
-            </div>
-            <span className="text-sm font-semibold text-ink">Borders & Effects</span>
-          </div>
-          <ChevronDown
-            className={cn("size-4 text-muted transition-transform duration-200", openSection === "borders" && "rotate-180")}
-          />
-        </button>
-        {openSection === "borders" && (
-          <div className="border-t border-line-soft p-3.5 space-y-4">
-            {/* Border Style */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted">Border Style</label>
-              <div className="grid grid-cols-3 gap-2">
-                {(["none", "subtle", "solid"] as const).map((b) => (
-                  <button
-                    key={b}
-                    type="button"
-                    onClick={() => useEditor.getState().patchSelected({ borderStyle: b })}
-                    className={cn(
-                      "py-1.5 text-xs font-semibold rounded-xl border capitalize transition-all",
-                      (sec.borderStyle || "subtle") === b
-                        ? "border-accent bg-accent/10 text-accent font-bold"
-                        : "border-line-soft bg-surface text-ink hover:bg-fill"
-                    )}
-                  >
-                    {b}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Shadow */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted">Shadow Effect</label>
-              <div className="grid grid-cols-4 gap-1.5">
-                {(["none", "subtle", "float", "glass"] as const).map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => useEditor.getState().patchSelected({ shadow: s })}
-                    className={cn(
-                      "py-1.5 text-xs font-semibold rounded-xl border capitalize transition-all",
-                      (sec.shadow || "none") === s
-                        ? "border-accent bg-accent/10 text-accent font-bold"
-                        : "border-line-soft bg-surface text-ink hover:bg-fill"
-                    )}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Backdrop Blur toggle */}
-            <div className="flex items-center justify-between pt-1">
-              <div>
-                <div className="text-xs font-semibold text-ink">Backdrop Blur</div>
-                <div className="text-[11px] text-muted">Frosted glass behind navbar</div>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={sec.backdropBlur !== false}
-                onClick={() => useEditor.getState().patchSelected({ backdropBlur: sec.backdropBlur === false ? true : false })}
-                className={cn(
-                  "tap-smooth relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200",
-                  sec.backdropBlur !== false ? "bg-accent" : "bg-slate-200 dark:bg-zinc-700"
-                )}
-              >
-                <span
-                  className={cn(
-                    "pointer-events-none inline-block size-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200",
-                    sec.backdropBlur !== false ? "translate-x-5" : "translate-x-0"
-                  )}
-                />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 3. Typography */}
-      <div className="overflow-hidden rounded-2xl border border-line-soft bg-surface shadow-2xs">
-        <button
-          type="button"
-          onClick={() => toggle("typography")}
-          className="flex w-full items-center justify-between p-3.5 text-left transition-colors hover:bg-fill/60"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-7 items-center justify-center rounded-xl bg-fill text-ink">
-              <Type className="size-4" />
-            </div>
-            <span className="text-sm font-semibold text-ink">Typography</span>
-          </div>
-          <ChevronDown
-            className={cn("size-4 text-muted transition-transform duration-200", openSection === "typography" && "rotate-180")}
-          />
-        </button>
-        {openSection === "typography" && (
-          <div className="border-t border-line-soft p-3.5 space-y-4">
-            {/* Font size */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted">Brand & Link Size</label>
-              <div className="grid grid-cols-4 gap-1.5">
-                {(["sm", "base", "lg", "xl"] as const).map((sz) => (
-                  <button
-                    key={sz}
-                    type="button"
-                    onClick={() => useEditor.getState().patchSelected({ fontSize: sz })}
-                    className={cn(
-                      "py-1.5 text-xs font-semibold rounded-xl border uppercase transition-all",
-                      (sec.fontSize || "base") === sz
-                        ? "border-accent bg-accent/10 text-accent font-bold"
-                        : "border-line-soft bg-surface text-ink hover:bg-fill"
-                    )}
-                  >
-                    {sz}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Font weight */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted">Font Weight</label>
-              <div className="grid grid-cols-4 gap-1.5">
-                {(["normal", "medium", "semibold", "bold"] as const).map((w) => (
-                  <button
-                    key={w}
-                    type="button"
-                    onClick={() => useEditor.getState().patchSelected({ fontWeight: w })}
-                    className={cn(
-                      "py-1.5 text-xs font-semibold rounded-xl border capitalize transition-all",
-                      (sec.fontWeight || "semibold") === w
-                        ? "border-accent bg-accent/10 text-accent font-bold"
-                        : "border-line-soft bg-surface text-ink hover:bg-fill"
-                    )}
-                  >
-                    {w}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Letter spacing */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted">Letter Spacing</label>
-              <div className="grid grid-cols-4 gap-1.5">
-                {(["tight", "normal", "wide", "widest"] as const).map((ls) => (
-                  <button
-                    key={ls}
-                    type="button"
-                    onClick={() => useEditor.getState().patchSelected({ letterSpacing: ls })}
-                    className={cn(
-                      "py-1.5 text-xs font-semibold rounded-xl border capitalize transition-all",
-                      (sec.letterSpacing || "normal") === ls
-                        ? "border-accent bg-accent/10 text-accent font-bold"
-                        : "border-line-soft bg-surface text-ink hover:bg-fill"
-                    )}
-                  >
-                    {ls}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Uppercase toggle */}
-            <div className="flex items-center justify-between pt-1">
-              <div>
-                <div className="text-xs font-semibold text-ink">Uppercase Brand & Links</div>
-                <div className="text-[11px] text-muted">Display text in ALL CAPS</div>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={sec.uppercase !== false}
-                onClick={() => useEditor.getState().patchSelected({ uppercase: sec.uppercase === false ? true : false })}
-                className={cn(
-                  "tap-smooth relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200",
-                  sec.uppercase !== false ? "bg-accent" : "bg-slate-200 dark:bg-zinc-700"
-                )}
-              >
-                <span
-                  className={cn(
-                    "pointer-events-none inline-block size-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200",
-                    sec.uppercase !== false ? "translate-x-5" : "translate-x-0"
-                  )}
-                />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 4. Menu Customization */}
-      <div className="overflow-hidden rounded-2xl border border-line-soft bg-surface shadow-2xs">
-        <button
-          type="button"
-          onClick={() => toggle("menu")}
-          className="flex w-full items-center justify-between p-3.5 text-left transition-colors hover:bg-fill/60"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-7 items-center justify-center rounded-xl bg-fill text-ink">
-              <Compass className="size-4" />
-            </div>
-            <span className="text-sm font-semibold text-ink">Menu Customization</span>
-          </div>
-          <ChevronDown
-            className={cn("size-4 text-muted transition-transform duration-200", openSection === "menu" && "rotate-180")}
-          />
-        </button>
-        {openSection === "menu" && (
-          <div className="border-t border-line-soft p-3.5 space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-muted uppercase tracking-wider">Menu Links</label>
-              <button
-                type="button"
-                onClick={() => {
-                  const newLink: NavbarLink = {
-                    id: Date.now().toString(),
-                    label: "New Link",
-                    url: "shop",
-                  };
-                  useEditor.getState().patchSelected({ links: [...currentLinks, newLink] });
-                }}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
-              >
-                <Plus className="size-3.5" />
-                <span>Add Link</span>
-              </button>
-            </div>
-            <div className="flex flex-col gap-2">
-              {currentLinks.map((link, idx) => (
-                <div key={link.id} className="flex items-center gap-2 p-2 rounded-xl border border-line-soft bg-fill/40">
-                  <input
-                    type="text"
-                    value={link.label}
-                    onChange={(e) => {
-                      const updated = [...currentLinks];
-                      updated[idx] = { ...link, label: e.target.value };
-                      useEditor.getState().patchSelected({ links: updated });
-                    }}
-                    placeholder="Label"
-                    className="flex-1 rounded-lg border border-line-soft bg-surface px-2.5 py-1 text-xs font-medium text-ink focus:border-accent focus:outline-hidden"
-                  />
-                  <input
-                    type="text"
-                    value={link.url}
-                    onChange={(e) => {
-                      const updated = [...currentLinks];
-                      updated[idx] = { ...link, url: e.target.value };
-                      useEditor.getState().patchSelected({ links: updated });
-                    }}
-                    placeholder="URL / Page"
-                    className="w-24 rounded-lg border border-line-soft bg-surface px-2 py-1 text-xs font-mono text-muted focus:border-accent focus:outline-hidden"
-                  />
-                  <button
-                    type="button"
-                    aria-label="Remove link"
-                    onClick={() => {
-                      const updated = currentLinks.filter((_, i) => i !== idx);
-                      useEditor.getState().patchSelected({ links: updated });
-                    }}
-                    className="p-1 text-muted hover:text-red-500 transition-colors"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 5. Behavior */}
-      <div className="overflow-hidden rounded-2xl border border-line-soft bg-surface shadow-2xs">
-        <button
-          type="button"
-          onClick={() => toggle("behavior")}
-          className="flex w-full items-center justify-between p-3.5 text-left transition-colors hover:bg-fill/60"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-7 items-center justify-center rounded-xl bg-fill text-ink">
-              <Shield className="size-4" />
-            </div>
-            <span className="text-sm font-semibold text-ink">Behavior</span>
-          </div>
-          <ChevronDown
-            className={cn("size-4 text-muted transition-transform duration-200", openSection === "behavior" && "rotate-180")}
-          />
-        </button>
-        {openSection === "behavior" && (
-          <div className="border-t border-line-soft p-3.5">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-semibold text-ink">Sticky Navigation</div>
-                <div className="text-xs text-muted">Keep header pinned to top when scrolling</div>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={sec.sticky ?? true}
-                onClick={() => useEditor.getState().patchSelected({ sticky: !(sec.sticky ?? true) })}
-                className={cn(
-                  "tap-smooth relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200",
-                  (sec.sticky ?? true) ? "bg-accent" : "bg-slate-200 dark:bg-zinc-700"
-                )}
-              >
-                <span
-                  className={cn(
-                    "pointer-events-none inline-block size-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200",
-                    (sec.sticky ?? true) ? "translate-x-5" : "translate-x-0"
-                  )}
-                />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function NavbarLayout({ sec }: { sec: NavbarSection }) {
-  return (
-    <div className="flex flex-col gap-4">
-      {/* Full-width vs Floating Pill */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-semibold text-muted uppercase tracking-wider">Layout Mode</label>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => useEditor.getState().patchSelected({ isFloating: false })}
-            className={cn(
-              "py-2.5 text-xs font-semibold rounded-xl border text-center transition-all",
-              !sec.isFloating
-                ? "border-accent bg-accent/10 text-accent font-bold ring-2 ring-accent/20"
-                : "border-line-soft bg-surface text-ink hover:bg-fill"
-            )}
-          >
-            Full Width
-          </button>
-          <button
-            type="button"
-            onClick={() => useEditor.getState().patchSelected({ isFloating: true })}
-            className={cn(
-              "py-2.5 text-xs font-semibold rounded-xl border text-center transition-all",
-              sec.isFloating
-                ? "border-accent bg-accent/10 text-accent font-bold ring-2 ring-accent/20"
-                : "border-line-soft bg-surface text-ink hover:bg-fill"
-            )}
-          >
-            Floating Pill
-          </button>
-        </div>
-      </div>
-
-      {/* Height Slider */}
-      <div className="flex flex-col gap-2 rounded-2xl border border-line-soft bg-surface p-3.5 shadow-2xs">
-        <div className="flex justify-between items-center">
-          <span className="text-xs font-semibold text-muted uppercase tracking-wider">Bar Height</span>
-          <span className="text-xs font-bold text-accent font-mono bg-accent/10 px-2 py-0.5 rounded-md">
-            {sec.height || 56}px
-          </span>
-        </div>
-        <input
-          type="range"
-          min={48}
-          max={80}
-          step={2}
-          value={sec.height || 56}
-          onChange={(e) => useEditor.getState().patchSelected({ height: Number(e.target.value) })}
-          className="accent-accent w-full cursor-pointer h-2 bg-slate-200 dark:bg-zinc-700 rounded-lg"
-        />
-        <div className="flex justify-between text-[10px] text-muted font-mono">
-          <span>Compact (48px)</span>
-          <span>Standard (56px)</span>
-          <span>Roomy (80px)</span>
-        </div>
-      </div>
-
-      {/* Corner Radius Slider */}
-      <div className="flex flex-col gap-2 rounded-2xl border border-line-soft bg-surface p-3.5 shadow-2xs">
-        <div className="flex justify-between items-center">
-          <span className="text-xs font-semibold text-muted uppercase tracking-wider">Corner Radius</span>
-          <span className="text-xs font-bold text-accent font-mono bg-accent/10 px-2 py-0.5 rounded-md">
-            {sec.borderRadius === 9999 ? "Full Pill (9999px)" : `${sec.borderRadius ?? (sec.isFloating ? 9999 : 0)}px`}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="range"
-            min={0}
-            max={40}
-            step={2}
-            value={sec.borderRadius === 9999 ? 40 : (sec.borderRadius ?? (sec.isFloating ? 40 : 0))}
-            onChange={(e) => useEditor.getState().patchSelected({ borderRadius: Number(e.target.value) })}
-            className="accent-accent flex-1 cursor-pointer h-2 bg-slate-200 dark:bg-zinc-700 rounded-lg"
-          />
-          <button
-            type="button"
-            onClick={() => useEditor.getState().patchSelected({ borderRadius: 9999 })}
-            className={cn(
-              "px-3 py-1.5 text-xs font-semibold rounded-xl border shrink-0 transition-all",
-              sec.borderRadius === 9999
-                ? "border-accent bg-accent text-white"
-                : "border-line-soft bg-fill hover:bg-line-soft text-ink"
-            )}
-          >
-            Pill
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function NavbarEffects({ sec }: { sec: NavbarSection }) {
-  return (
-    <div className="flex flex-col gap-4">
-      {/* Border Style */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-semibold text-muted uppercase tracking-wider">Border Style</label>
-        <div className="grid grid-cols-3 gap-2">
-          {(["none", "subtle", "solid"] as const).map((b) => (
-            <button
-              key={b}
-              type="button"
-              onClick={() => useEditor.getState().patchSelected({ borderStyle: b })}
-              className={cn(
-                "py-2 text-xs font-semibold rounded-xl border capitalize transition-all",
-                (sec.borderStyle || "subtle") === b
-                  ? "border-accent bg-accent/10 text-accent font-bold ring-2 ring-accent/20"
-                  : "border-line-soft bg-surface text-ink hover:bg-fill"
-              )}
-            >
-              {b}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Shadow Effect */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-semibold text-muted uppercase tracking-wider">Shadow Effect</label>
-        <div className="grid grid-cols-4 gap-1.5">
-          {(["none", "subtle", "float", "glass"] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => useEditor.getState().patchSelected({ shadow: s })}
-              className={cn(
-                "py-2 text-xs font-semibold rounded-xl border capitalize transition-all",
-                (sec.shadow || "none") === s
-                  ? "border-accent bg-accent/10 text-accent font-bold ring-2 ring-accent/20"
-                  : "border-line-soft bg-surface text-ink hover:bg-fill"
-              )}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Backdrop Blur toggle */}
-      <div className="flex items-center justify-between p-3.5 rounded-2xl border border-line-soft bg-surface shadow-2xs">
-        <div>
-          <div className="text-sm font-semibold text-ink">Backdrop Blur</div>
-          <div className="text-xs text-muted">Frosted glass effect behind header</div>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={sec.backdropBlur !== false}
-          onClick={() => useEditor.getState().patchSelected({ backdropBlur: sec.backdropBlur === false ? true : false })}
-          className={cn(
-            "tap-smooth relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200",
-            sec.backdropBlur !== false ? "bg-accent" : "bg-slate-200 dark:bg-zinc-700"
-          )}
-        >
-          <span
-            className={cn(
-              "pointer-events-none inline-block size-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200",
-              sec.backdropBlur !== false ? "translate-x-5" : "translate-x-0"
-            )}
-          />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function NavbarTypography({ sec }: { sec: NavbarSection }) {
-  return (
-    <div className="flex flex-col gap-4">
-      {/* Font size */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-semibold text-muted uppercase tracking-wider">Brand & Link Size</label>
-        <div className="grid grid-cols-4 gap-1.5">
-          {(["sm", "base", "lg", "xl"] as const).map((sz) => (
-            <button
-              key={sz}
-              type="button"
-              onClick={() => useEditor.getState().patchSelected({ fontSize: sz })}
-              className={cn(
-                "py-2 text-xs font-semibold rounded-xl border uppercase transition-all",
-                (sec.fontSize || "base") === sz
-                  ? "border-accent bg-accent/10 text-accent font-bold ring-2 ring-accent/20"
-                  : "border-line-soft bg-surface text-ink hover:bg-fill"
-              )}
-            >
-              {sz}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Font weight */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-semibold text-muted uppercase tracking-wider">Font Weight</label>
-        <div className="grid grid-cols-4 gap-1.5">
-          {(["normal", "medium", "semibold", "bold"] as const).map((w) => (
-            <button
-              key={w}
-              type="button"
-              onClick={() => useEditor.getState().patchSelected({ fontWeight: w })}
-              className={cn(
-                "py-2 text-xs font-semibold rounded-xl border capitalize transition-all",
-                (sec.fontWeight || "semibold") === w
-                  ? "border-accent bg-accent/10 text-accent font-bold ring-2 ring-accent/20"
-                  : "border-line-soft bg-surface text-ink hover:bg-fill"
-              )}
-            >
-              {w}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Letter spacing */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-semibold text-muted uppercase tracking-wider">Letter Spacing</label>
-        <div className="grid grid-cols-4 gap-1.5">
-          {(["tight", "normal", "wide", "widest"] as const).map((ls) => (
-            <button
-              key={ls}
-              type="button"
-              onClick={() => useEditor.getState().patchSelected({ letterSpacing: ls })}
-              className={cn(
-                "py-2 text-xs font-semibold rounded-xl border capitalize transition-all",
-                (sec.letterSpacing || "normal") === ls
-                  ? "border-accent bg-accent/10 text-accent font-bold ring-2 ring-accent/20"
-                  : "border-line-soft bg-surface text-ink hover:bg-fill"
-              )}
-            >
-              {ls}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Uppercase toggle */}
-      <div className="flex items-center justify-between p-3.5 rounded-2xl border border-line-soft bg-surface shadow-2xs">
-        <div>
-          <div className="text-sm font-semibold text-ink">Uppercase Brand & Links</div>
-          <div className="text-xs text-muted">Display brand name & links in ALL CAPS</div>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={sec.uppercase !== false}
-          onClick={() => useEditor.getState().patchSelected({ uppercase: sec.uppercase === false ? true : false })}
-          className={cn(
-            "tap-smooth relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200",
-            sec.uppercase !== false ? "bg-accent" : "bg-slate-200 dark:bg-zinc-700"
-          )}
-        >
-          <span
-            className={cn(
-              "pointer-events-none inline-block size-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200",
-              sec.uppercase !== false ? "translate-x-5" : "translate-x-0"
-            )}
-          />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function NavbarLinks({ sec }: { sec: NavbarSection }) {
-  const defaultLinks: NavbarLink[] = [
-    { id: "1", label: "Home", url: "home" },
-    { id: "2", label: "Shop", url: "shop" },
-    { id: "3", label: "Product", url: "product" },
-  ];
-
-  const currentLinks = sec.links && sec.links.length > 0 ? sec.links : defaultLinks;
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <label className="text-xs font-semibold text-muted uppercase tracking-wider">Navigation Links</label>
-        <button
-          type="button"
-          onClick={() => {
-            const newLink: NavbarLink = {
-              id: Date.now().toString(),
-              label: "New Link",
-              url: "shop",
-            };
-            useEditor.getState().patchSelected({ links: [...currentLinks, newLink] });
-          }}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
-        >
-          <Plus className="size-3.5" />
-          <span>Add Link</span>
-        </button>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        {currentLinks.map((link, idx) => (
-          <div key={link.id} className="flex items-center gap-2 p-2.5 rounded-2xl border border-line-soft bg-surface shadow-2xs">
-            <input
-              type="text"
-              value={link.label}
-              onChange={(e) => {
-                const updated = [...currentLinks];
-                updated[idx] = { ...link, label: e.target.value };
-                useEditor.getState().patchSelected({ links: updated });
-              }}
-              placeholder="Label"
-              className="flex-1 rounded-xl border border-line-soft bg-fill/50 px-3 py-1.5 text-xs font-medium text-ink focus:border-accent focus:bg-surface focus:outline-hidden"
-            />
-            <input
-              type="text"
-              value={link.url}
-              onChange={(e) => {
-                const updated = [...currentLinks];
-                updated[idx] = { ...link, url: e.target.value };
-                useEditor.getState().patchSelected({ links: updated });
-              }}
-              placeholder="URL / Page"
-              className="w-28 rounded-xl border border-line-soft bg-fill/50 px-3 py-1.5 text-xs font-mono text-muted focus:border-accent focus:bg-surface focus:outline-hidden"
-            />
-            <button
-              type="button"
-              aria-label="Remove link"
-              onClick={() => {
-                const updated = currentLinks.filter((_, i) => i !== idx);
-                useEditor.getState().patchSelected({ links: updated });
-              }}
-              className="p-1.5 text-muted hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
-            >
-              <Trash2 className="size-4" />
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 const RATIOS: { id: HeroRatio; title: string; detail: string; aspect: string }[] = [
   { id: "16:9", title: "16:9 Widescreen", detail: "Standard modern widescreen banner.", aspect: "16 / 9" },
   { id: "21:9", title: "21:9 Cinematic", detail: "Ultra-wide panoramic showcase.", aspect: "21 / 9" },
@@ -4801,7 +3569,7 @@ function FooterStyles({
   );
 }
 
-function CategoriesTemplate({ current }: { current?: "cards" | "pills" | "grid" }) {
+function CategoriesTemplate({ current }: { current?: "cards" | "pills" | "grid" | "story" }) {
   const active = current ?? "cards";
   return (
     <div className="flex flex-col gap-3">
@@ -4815,6 +3583,31 @@ function CategoriesTemplate({ current }: { current?: "cards" | "pills" | "grid" 
           </div>
           <div className="aspect-[4/3] rounded-lg bg-slate-300 relative overflow-hidden flex items-end p-1.5">
             <div className="h-2 w-10 rounded-full bg-slate-800" />
+          </div>
+        </div>
+      </TemplateCard>
+      <TemplateCard
+        active={active === "story"}
+        onClick={() => useEditor.getState().patchSelected({ template: "story" })}
+      >
+        <div className="flex items-center gap-2 rounded-xl border border-line-soft bg-fill/30 p-2.5">
+          <div className="flex flex-col items-center gap-1">
+            <div className="size-8 rounded-full border-2 border-accent p-0.5">
+              <div className="size-full rounded-full bg-slate-400" />
+            </div>
+            <div className="h-1.5 w-6 rounded-full bg-slate-700" />
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <div className="size-8 rounded-full border-2 border-purple-500 p-0.5">
+              <div className="size-full rounded-full bg-slate-400" />
+            </div>
+            <div className="h-1.5 w-6 rounded-full bg-slate-700" />
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <div className="size-8 rounded-full border-2 border-line p-0.5">
+              <div className="size-full rounded-full bg-slate-300" />
+            </div>
+            <div className="h-1.5 w-6 rounded-full bg-slate-500" />
           </div>
         </div>
       </TemplateCard>
@@ -4852,33 +3645,404 @@ function CategoriesTemplate({ current }: { current?: "cards" | "pills" | "grid" 
   );
 }
 
-function BrandsTemplate({ current }: { current?: "row" | "grid" }) {
-  const active = current ?? "row";
+function BrandsTemplate({ current }: { current?: BrandTemplate }) {
+  const active = current ?? "marquee";
   return (
     <div className="flex flex-col gap-3">
       <TemplateCard
-        active={active === "row"}
-        onClick={() => useEditor.getState().patchSelected({ template: "row" })}
+        active={active === "marquee"}
+        onClick={() => useEditor.getState().patchSelected({ template: "marquee" })}
       >
-        <div className="flex items-center justify-center gap-2 rounded-xl border border-line-soft bg-fill/30 p-3">
-          <div className="h-6 w-14 rounded-lg bg-slate-300" />
-          <div className="h-6 w-14 rounded-lg bg-slate-300" />
-          <div className="h-6 w-14 rounded-lg bg-slate-300" />
+        <div className="flex flex-col gap-1 w-full">
+          <div className="flex items-center justify-between text-xs font-bold text-ink">
+            <span>Infinite Marquee Ticker</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/10 text-accent font-semibold">POPULAR</span>
+          </div>
+          <p className="text-[11px] text-muted">Continuous smooth auto-scrolling brand logos.</p>
+          <div className="mt-1 flex items-center gap-2 rounded-xl border border-line-soft bg-fill/30 p-2.5 overflow-hidden">
+            <div className="h-6 px-3 rounded-lg bg-surface border border-line-soft flex items-center justify-center text-[10px] font-bold">NIKE</div>
+            <div className="h-6 px-3 rounded-lg bg-surface border border-line-soft flex items-center justify-center text-[10px] font-bold">ADIDAS</div>
+            <div className="h-6 px-3 rounded-lg bg-surface border border-line-soft flex items-center justify-center text-[10px] font-bold">SALOMON</div>
+          </div>
         </div>
       </TemplateCard>
+
+      <TemplateCard
+        active={active === "editorial"}
+        onClick={() => useEditor.getState().patchSelected({ template: "editorial" })}
+      >
+        <div className="flex flex-col gap-1 w-full">
+          <div className="flex items-center justify-between text-xs font-bold text-ink">
+            <span>Editorial Lookbook Cards</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 font-semibold">CONVERSION</span>
+          </div>
+          <p className="text-[11px] text-muted">Lifestyle visual cards with logo overlay and direct shop link.</p>
+          <div className="mt-1 grid grid-cols-2 gap-2 rounded-xl border border-line-soft bg-fill/30 p-2.5">
+            <div className="aspect-[4/3] rounded-lg bg-slate-800 p-2 flex flex-col justify-end text-white">
+              <span className="text-[10px] font-black">NIKE</span>
+              <span className="text-[8px] text-white/70">Shop →</span>
+            </div>
+            <div className="aspect-[4/3] rounded-lg bg-slate-700 p-2 flex flex-col justify-end text-white">
+              <span className="text-[10px] font-black">ADIDAS</span>
+              <span className="text-[8px] text-white/70">Shop →</span>
+            </div>
+          </div>
+        </div>
+      </TemplateCard>
+
+      <TemplateCard
+        active={active === "story"}
+        onClick={() => useEditor.getState().patchSelected({ template: "story" })}
+      >
+        <div className="flex flex-col gap-1 w-full">
+          <div className="text-xs font-bold text-ink">Mobile Story Badges</div>
+          <p className="text-[11px] text-muted">Instagram-style circular avatars with active gradient ring.</p>
+          <div className="mt-1 flex items-center gap-2 rounded-xl border border-line-soft bg-fill/30 p-2.5">
+            <div className="size-8 rounded-full border-2 border-accent p-0.5 flex items-center justify-center text-[9px] font-bold bg-surface">NK</div>
+            <div className="size-8 rounded-full border-2 border-purple-500 p-0.5 flex items-center justify-center text-[9px] font-bold bg-surface">AD</div>
+            <div className="size-8 rounded-full border-2 border-emerald-500 p-0.5 flex items-center justify-center text-[9px] font-bold bg-surface">NB</div>
+          </div>
+        </div>
+      </TemplateCard>
+
       <TemplateCard
         active={active === "grid"}
         onClick={() => useEditor.getState().patchSelected({ template: "grid" })}
       >
-        <div className="grid grid-cols-3 gap-2 rounded-xl border border-line-soft bg-fill/30 p-3">
-          <div className="h-7 rounded-lg bg-slate-300" />
-          <div className="h-7 rounded-lg bg-slate-300" />
-          <div className="h-7 rounded-lg bg-slate-300" />
-          <div className="h-7 rounded-lg bg-slate-200" />
-          <div className="h-7 rounded-lg bg-slate-200" />
-          <div className="h-7 rounded-lg bg-slate-200" />
+        <div className="flex flex-col gap-1 w-full">
+          <div className="text-xs font-bold text-ink">Minimalist Trust Grid</div>
+          <p className="text-[11px] text-muted">Clean structured boxes with brand names and taglines.</p>
+          <div className="mt-1 grid grid-cols-3 gap-1.5 rounded-xl border border-line-soft bg-fill/30 p-2">
+            <div className="h-6 rounded-md bg-surface border border-line-soft flex items-center justify-center text-[9px] font-bold">NIKE</div>
+            <div className="h-6 rounded-md bg-surface border border-line-soft flex items-center justify-center text-[9px] font-bold">ADIDAS</div>
+            <div className="h-6 rounded-md bg-surface border border-line-soft flex items-center justify-center text-[9px] font-bold">PUMA</div>
+          </div>
         </div>
       </TemplateCard>
+
+      <TemplateCard
+        active={active === "row"}
+        onClick={() => useEditor.getState().patchSelected({ template: "row" })}
+      >
+        <div className="flex flex-col gap-1 w-full">
+          <div className="text-xs font-bold text-ink">Classic Horizontal Row</div>
+          <p className="text-[11px] text-muted">Static swipeable row of brands.</p>
+          <div className="mt-1 flex items-center justify-center gap-2 rounded-xl border border-line-soft bg-fill/30 p-2.5">
+            <div className="h-6 w-14 rounded-md bg-slate-300" />
+            <div className="h-6 w-14 rounded-md bg-slate-300" />
+          </div>
+        </div>
+      </TemplateCard>
+    </div>
+  );
+}
+
+function BrandsStyle({ section }: { section: BrandsSection }) {
+  const [badge, setBadge] = useState(section.trustBadge || "");
+  const [title, setTitle] = useState(section.title || "");
+  const [subtitle, setSubtitle] = useState(section.subtitle || "");
+
+  const speed = section.marqueeSpeed || "normal";
+  const direction = section.marqueeDirection || "left";
+  const pauseOnHover = section.pauseOnHover !== false;
+  const colorFilter = section.colorFilter || "monochrome";
+  const edgeFade = section.edgeFade !== false;
+  const columns = section.columns || 3;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Field label="Trust Badge Tag">
+        <TextInput
+          value={badge}
+          placeholder="e.g. 100% Authorized Stockist"
+          onChange={(e) => {
+            setBadge(e.target.value);
+            useEditor.getState().patchSelected({ trustBadge: e.target.value });
+          }}
+        />
+      </Field>
+
+      <Field label="Section Title">
+        <TextInput
+          value={title}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            useEditor.getState().patchSelected({ title: e.target.value });
+          }}
+        />
+      </Field>
+
+      <Field label="Supporting Subtitle">
+        <TextInput
+          value={subtitle}
+          onChange={(e) => {
+            setSubtitle(e.target.value);
+            useEditor.getState().patchSelected({ subtitle: e.target.value });
+          }}
+        />
+      </Field>
+
+      {section.template === "marquee" && (
+        <div className="space-y-2">
+          <span className="block text-xs font-medium text-muted">Marquee Animation Settings</span>
+          <Group>
+            <div className="p-3 flex flex-col gap-3">
+              <div>
+                <span className="text-xs font-semibold text-ink">Scroll Speed</span>
+                <div className="mt-1.5 grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-fill/60 border border-line-soft text-xs">
+                  {(["slow", "normal", "fast"] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => useEditor.getState().patchSelected({ marqueeSpeed: s })}
+                      className={cn(
+                        "py-1.5 rounded-lg font-medium capitalize tap-smooth",
+                        speed === s ? "bg-surface text-ink shadow-2xs font-bold" : "text-muted hover:text-ink"
+                      )}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <span className="text-xs font-semibold text-ink">Scroll Direction</span>
+                <div className="mt-1.5 grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-fill/60 border border-line-soft text-xs">
+                  {(["left", "right"] as const).map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => useEditor.getState().patchSelected({ marqueeDirection: d })}
+                      className={cn(
+                        "py-1.5 rounded-lg font-medium capitalize tap-smooth",
+                        direction === d ? "bg-surface text-ink shadow-2xs font-bold" : "text-muted hover:text-ink"
+                      )}
+                    >
+                      {d === "left" ? "← Leftward" : "Rightward →"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <div>
+                  <span className="text-xs font-semibold text-ink">Pause on Hover</span>
+                  <p className="text-[10px] text-muted">Stops scrolling when cursor hovers</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => useEditor.getState().patchSelected({ pauseOnHover: !pauseOnHover })}
+                  className={cn(
+                    "h-6 w-11 rounded-full p-0.5 transition-colors tap-smooth",
+                    pauseOnHover ? "bg-accent" : "bg-line"
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "size-5 rounded-full bg-white transition-transform shadow-xs",
+                      pauseOnHover ? "translate-x-5" : "translate-x-0"
+                    )}
+                  />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <div>
+                  <span className="text-xs font-semibold text-ink">Edge Gradient Fade</span>
+                  <p className="text-[10px] text-muted">Smooth left and right fade mask</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => useEditor.getState().patchSelected({ edgeFade: !edgeFade })}
+                  className={cn(
+                    "h-6 w-11 rounded-full p-0.5 transition-colors tap-smooth",
+                    edgeFade ? "bg-accent" : "bg-line"
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "size-5 rounded-full bg-white transition-transform shadow-xs",
+                      edgeFade ? "translate-x-5" : "translate-x-0"
+                    )}
+                  />
+                </button>
+              </div>
+            </div>
+          </Group>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <span className="block text-xs font-medium text-muted">Visual Style & Colors</span>
+        <Group>
+          <div className="p-3 flex flex-col gap-3">
+            <div>
+              <span className="text-xs font-semibold text-ink">Logo Filter</span>
+              <div className="mt-1.5 grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-fill/60 border border-line-soft text-xs">
+                {(["monochrome", "original", "inverted"] as const).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => useEditor.getState().patchSelected({ colorFilter: f })}
+                    className={cn(
+                      "py-1.5 rounded-lg font-medium capitalize tap-smooth",
+                      colorFilter === f ? "bg-surface text-ink shadow-2xs font-bold" : "text-muted hover:text-ink"
+                    )}
+                  >
+                    {f === "monochrome" ? "Muted" : f === "original" ? "Original" : "Invert"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {section.template === "grid" && (
+              <div>
+                <span className="text-xs font-semibold text-ink">Columns on Desktop</span>
+                <div className="mt-1.5 grid grid-cols-4 gap-1.5 p-1 rounded-xl bg-fill/60 border border-line-soft text-xs">
+                  {([2, 3, 4, 6] as const).map((col) => (
+                    <button
+                      key={col}
+                      type="button"
+                      onClick={() => useEditor.getState().patchSelected({ columns: col })}
+                      className={cn(
+                        "py-1.5 rounded-lg font-medium tap-smooth",
+                        columns === col ? "bg-surface text-ink shadow-2xs font-bold" : "text-muted hover:text-ink"
+                      )}
+                    >
+                      {col} Cols
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </Group>
+      </div>
+    </div>
+  );
+}
+
+function BrandsItems({ section }: { section: BrandsSection }) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const items = section.items;
+
+  const updateItem = (id: string, patch: Partial<BrandItem>) => {
+    const updated = items.map((b) => (b.id === id ? { ...b, ...patch } : b));
+    useEditor.getState().patchSelected({ items: updated });
+  };
+
+  const deleteItem = (id: string) => {
+    const updated = items.filter((b) => b.id !== id);
+    useEditor.getState().patchSelected({ items: updated });
+  };
+
+  const addItem = () => {
+    const newBrand: BrandItem = {
+      id: `b-${Date.now()}`,
+      name: "NEW BRAND",
+      tagline: "Global Collection",
+      image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=80",
+      buttonText: "Shop Brand",
+    };
+    useEditor.getState().patchSelected({ items: [...items, newBrand] });
+    setEditingId(newBrand.id);
+  };
+
+  const activeItem = items.find((b) => b.id === editingId);
+
+  if (activeItem) {
+    return (
+      <div className="flex flex-col gap-3">
+        <button
+          type="button"
+          onClick={() => setEditingId(null)}
+          className="text-xs font-semibold text-accent hover:underline text-left"
+        >
+          ← Back to brand list
+        </button>
+
+        <Field label="Brand Name">
+          <TextInput
+            value={activeItem.name}
+            onChange={(e) => updateItem(activeItem.id, { name: e.target.value })}
+          />
+        </Field>
+
+        <Field label="Tagline / Subtext">
+          <TextInput
+            value={activeItem.tagline || ""}
+            placeholder="e.g. Performance & Speed"
+            onChange={(e) => updateItem(activeItem.id, { tagline: e.target.value })}
+          />
+        </Field>
+
+        <Field label="Lifestyle Image URL (for Editorial Cards)">
+          <TextInput
+            value={activeItem.image || ""}
+            placeholder="https://..."
+            onChange={(e) => updateItem(activeItem.id, { image: e.target.value })}
+          />
+        </Field>
+
+        <Field label="Action Button Label">
+          <TextInput
+            value={activeItem.buttonText || ""}
+            placeholder="e.g. Shop Collection"
+            onChange={(e) => updateItem(activeItem.id, { buttonText: e.target.value })}
+          />
+        </Field>
+
+        <PrimaryButton onClick={() => setEditingId(null)}>Done Editing</PrimaryButton>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-muted">{items.length} Brands in Section</span>
+        <button
+          type="button"
+          onClick={addItem}
+          className="tap-smooth inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent text-white text-xs font-semibold hover:opacity-90 shadow-2xs"
+        >
+          <Plus className="size-3.5" />
+          <span>Add Brand</span>
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-2 max-h-[50dvh] overflow-y-auto no-scrollbar">
+        {items.map((b) => (
+          <div
+            key={b.id}
+            className="flex items-center justify-between gap-3 p-3 rounded-2xl border border-line-soft bg-surface shadow-2xs"
+          >
+            <div className="min-w-0 flex-1">
+              <h4 className="text-sm font-black text-ink truncate">{b.name}</h4>
+              {b.tagline && <p className="text-[11px] text-muted truncate">{b.tagline}</p>}
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => setEditingId(b.id)}
+                className="tap-smooth px-2.5 py-1 text-xs font-semibold text-accent hover:bg-accent/10 rounded-lg"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                aria-label={`Delete ${b.name}`}
+                onClick={() => deleteItem(b.id)}
+                className="tap-smooth p-1.5 text-muted hover:text-red-500 rounded-lg hover:bg-red-500/10"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

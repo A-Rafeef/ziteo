@@ -265,14 +265,25 @@ export function navbar(): NavbarSection {
     name: "Navigation",
     template: "centered",
     background: "#ffffff",
+    backgroundOpacity: 100,
     text: "#1d1d1f",
+    linkColor: "#1d1d1f",
+    iconColor: "#1d1d1f",
     logo: "ZITEO",
     sticky: true,
     showSearch: true,
     showCart: false,
+    showWhatsapp: true,
+    whatsappNumber: "919876543210",
     showMenu: true,
     showLinks: true,
     showLogo: true,
+    showBrandName: true,
+    links: [
+      { id: "l1", label: "Home", url: "home", visible: true },
+      { id: "l2", label: "Shop", url: "shop", visible: true },
+      { id: "l3", label: "Product", url: "product", visible: true },
+    ],
   };
 }
 
@@ -456,15 +467,58 @@ export function createBrandsSection(id = `brands-${Date.now()}`): BrandsSection 
     name: "Brands",
     title: "Curated Brands",
     subtitle: "Authorized stockist for global innovators.",
+    trustBadge: "100% Authorized Stockist",
     background: "#ffffff",
-    template: "row",
+    template: "marquee",
+    marqueeSpeed: "normal",
+    marqueeDirection: "left",
+    pauseOnHover: true,
+    colorFilter: "monochrome",
+    edgeFade: true,
+    columns: 3,
     items: [
-      { id: "b1", name: "NIKE", tagline: "Performance & Innovation" },
-      { id: "b2", name: "ADIDAS", tagline: "Originals & Speed" },
-      { id: "b3", name: "NEW BALANCE", tagline: "Boston Craftsmanship" },
-      { id: "b4", name: "SALOMON", tagline: "Technical Trailwear" },
-      { id: "b5", name: "ASICS", tagline: "Sound Body & Mind" },
-      { id: "b6", name: "PUMA", tagline: "Forever Faster" },
+      {
+        id: "b1",
+        name: "NIKE",
+        tagline: "Performance & Innovation",
+        image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=80",
+        buttonText: "Shop Nike",
+      },
+      {
+        id: "b2",
+        name: "ADIDAS",
+        tagline: "Originals & Speed",
+        image: "https://images.unsplash.com/photo-1518002171953-a080ee817e1f?auto=format&fit=crop&w=800&q=80",
+        buttonText: "Shop Adidas",
+      },
+      {
+        id: "b3",
+        name: "NEW BALANCE",
+        tagline: "Boston Craftsmanship",
+        image: "https://images.unsplash.com/photo-1539185441755-769473a23570?auto=format&fit=crop&w=800&q=80",
+        buttonText: "Shop NB",
+      },
+      {
+        id: "b4",
+        name: "SALOMON",
+        tagline: "Technical Trailwear",
+        image: "https://images.unsplash.com/photo-1608231387042-66d1773070a5?auto=format&fit=crop&w=800&q=80",
+        buttonText: "Shop Salomon",
+      },
+      {
+        id: "b5",
+        name: "ASICS",
+        tagline: "Sound Body & Mind",
+        image: "https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?auto=format&fit=crop&w=800&q=80",
+        buttonText: "Shop Asics",
+      },
+      {
+        id: "b6",
+        name: "PUMA",
+        tagline: "Forever Faster",
+        image: "https://images.unsplash.com/photo-1608231387042-66d1773070a5?auto=format&fit=crop&w=800&q=80",
+        buttonText: "Shop Puma",
+      },
     ],
   };
 }
@@ -699,6 +753,25 @@ export function isDark(hex: string) {
   return (r * 299 + g * 587 + b * 114) / 1000 < 145;
 }
 
+export function colorWithOpacity(hex: string, opacity = 100) {
+  const clamped = Math.max(0, Math.min(100, opacity));
+  if (clamped >= 100) return hex;
+  const clean = hex.replace("#", "").trim();
+  const full =
+    clean.length === 3
+      ? clean
+          .split("")
+          .map((ch) => ch + ch)
+          .join("")
+      : clean.slice(0, 6);
+  if (full.length !== 6) return hex;
+  const r = Number.parseInt(full.slice(0, 2), 16);
+  const g = Number.parseInt(full.slice(2, 4), 16);
+  const b = Number.parseInt(full.slice(4, 6), 16);
+  if ([r, g, b].some((n) => Number.isNaN(n))) return hex;
+  return `rgba(${r}, ${g}, ${b}, ${Number((clamped / 100).toFixed(2))})`;
+}
+
 export function paintTheme(page: PageModel, theme: "light" | "ink"): PageModel {
   const dark = theme === "ink";
   const bg = dark ? "#1d1d1f" : "#ffffff";
@@ -713,6 +786,8 @@ export function paintTheme(page: PageModel, theme: "light" | "ink"): PageModel {
           template: dark ? "float" : "centered",
           background: dark ? "#000000" : "#ffffff",
           text,
+          linkColor: text,
+          iconColor: text,
         };
       case "hero":
         return { ...sec, template: dark ? "split" : "bleed", background: bg };

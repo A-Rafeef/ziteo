@@ -22,11 +22,24 @@ export function Editor() {
     } catch {
       localStorage.removeItem(STORAGE_KEY);
     }
+    let prevPages = useEditor.getState().pages;
+    let prevPageId = useEditor.getState().pageId;
+    let prevCart = useEditor.getState().cart;
     return useEditor.subscribe((state) => {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ pages: state.pages, pageId: state.pageId, cart: state.cart }),
-      );
+      if (state.pages === prevPages && state.pageId === prevPageId && state.cart === prevCart) {
+        return;
+      }
+      prevPages = state.pages;
+      prevPageId = state.pageId;
+      prevCart = state.cart;
+      try {
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ pages: state.pages, pageId: state.pageId, cart: state.cart }),
+        );
+      } catch {
+        // Ignore storage quota errors so editing remains responsive.
+      }
     });
   }, []);
 
