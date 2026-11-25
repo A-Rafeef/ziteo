@@ -651,7 +651,7 @@ export function createProductSection(id = `product-view-${Date.now()}`): Product
       p1.description ||
       "Crafted with full-grain leather, a responsive foam bed, and high-traction rubber outsole engineered for court durability and daily comfort.",
     colors: [...SWATCHES],
-    color: "#18181b",
+    color: p1.variants?.[0]?.options?.[0]?.label ?? "#18181b",
     sizes: ["UK 7", "UK 8", "UK 9", "UK 10", "UK 11"],
     size: "UK 8",
     gallery: p1.gallery || [PHOTOS.court, PHOTOS.red, PHOTOS.sport, PHOTOS.white],
@@ -788,14 +788,22 @@ export function paintTheme(page: PageModel, theme: "light" | "ink"): PageModel {
           text,
           linkColor: text,
           iconColor: text,
+          borderColor: dark ? "#2c2c30" : "#e8e8ed",
         };
       case "hero":
         return { ...sec, template: dark ? "split" : "bleed", background: bg };
       case "grid":
       case "featured":
+      case "catalog":
+        return {
+          ...sec,
+          background: bg,
+          cardBackground: dark ? "#161618" : "#ffffff",
+          borderColor: dark ? "#2c2c30" : "#e2e8f0",
+          priceColor: dark ? "#34d399" : "#059669",
+        };
       case "categories":
       case "brands":
-      case "catalog":
       case "filter-sort":
       case "product":
         return { ...sec, background: bg };

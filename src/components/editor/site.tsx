@@ -55,13 +55,6 @@ function WhatsAppIcon({ className }: { className?: string }) {
   );
 }
 
-function solid(dark: boolean) {
-  return cn(
-    "inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-medium",
-    dark ? "bg-on-ink text-ink" : "bg-ink text-on-ink",
-  );
-}
-
 function titleSize(device: Device) {
   if (device === "desktop") return "text-5xl";
   if (device === "tablet") return "text-4xl";
@@ -228,12 +221,14 @@ function SectionShell({
   section,
   background,
   color,
+  style,
   className,
   children,
 }: {
   section: Section;
   background?: string;
   color?: string;
+  style?: React.CSSProperties;
   className?: string;
   children: ReactNode;
 }) {
@@ -244,7 +239,7 @@ function SectionShell({
   return (
     <section
       data-section-id={section.id}
-      style={{ background, color }}
+      style={{ background, color, ...style }}
       onClick={(event) => {
         if (preview) return;
         event.stopPropagation();
@@ -497,6 +492,7 @@ function NavbarView({ sec, device }: { sec: NavbarSection; device: Device }) {
   const showCart = sec.showCart ?? false;
   const showMenu = sec.showMenu ?? true;
   const showLinks = sec.showLinks ?? true;
+  const darkNav = isDark(sec.background);
   const isSticky = sec.sticky ?? true;
   const linkColor = sec.linkColor || sec.text;
   const iconColor = sec.iconColor || sec.text;
@@ -530,7 +526,11 @@ function NavbarView({ sec, device }: { sec: NavbarSection; device: Device }) {
     sec.borderStyle === "none"
       ? "border-0"
       : sec.borderStyle === "solid"
-      ? "border-2 border-current/20"
+      ? darkNav
+        ? "border-2 border-white/20"
+        : "border-2 border-current/20"
+      : darkNav
+      ? "border border-white/15"
       : "border border-line-soft";
 
   // Typography styling
@@ -637,10 +637,12 @@ function NavbarView({ sec, device }: { sec: NavbarSection; device: Device }) {
     bar = (
       <div className={cn("flex items-center justify-between gap-4 py-2", gutter(device))} style={heightStyle}>
         <div className="shrink-0">{brandEl}</div>
-        <div className="flex-1 max-w-sm hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-fill/70 border border-line-soft text-muted text-xs">
-          <Search className="size-3.5 shrink-0" style={{ color: iconColor }} />
-          <span className="truncate">Search products...</span>
-        </div>
+        {roomy && (
+          <div className="flex-1 max-w-sm flex items-center gap-2 px-3 py-1.5 rounded-full bg-fill/70 border border-line-soft text-muted text-xs">
+            <Search className="size-3.5 shrink-0" style={{ color: iconColor }} />
+            <span className="truncate">Search products...</span>
+          </div>
+        )}
         <div className="flex items-center gap-1 shrink-0">
           {desktopActions}
           {!roomy && showMenu && menuButton}
@@ -766,10 +768,12 @@ function NavbarView({ sec, device }: { sec: NavbarSection; device: Device }) {
 
 function HeroView({
   sec,
+  device,
 }: {
   sec: Extract<Section, { type: "hero" }>;
   device: Device;
 }) {
+  const isMobile = device === "mobile";
   const image = sec.slides[sec.active] ?? sec.slides[0];
   const ratio = sec.ratio ?? "16:9";
   const aspect = ratio === "auto" ? undefined : ratio.replace(":", " / ");
@@ -800,21 +804,21 @@ function HeroView({
   // Width mode container
   const widthClass =
     sec.widthMode === "gap-sm"
-      ? "max-w-7xl mx-auto px-3 sm:px-6"
+      ? isMobile ? "max-w-7xl mx-auto px-3" : "max-w-7xl mx-auto px-6"
       : sec.widthMode === "gap-md"
-      ? "max-w-5xl mx-auto px-5 sm:px-10"
+      ? isMobile ? "max-w-5xl mx-auto px-5" : "max-w-5xl mx-auto px-10"
       : sec.widthMode === "gap-lg"
-      ? "max-w-4xl mx-auto px-6 sm:px-16"
+      ? isMobile ? "max-w-4xl mx-auto px-6" : "max-w-4xl mx-auto px-16"
       : "w-full px-0";
 
   // Vertical padding
   const paddingYClass =
     sec.paddingY === "sm"
-      ? "py-2 sm:py-3"
+      ? isMobile ? "py-2" : "py-3"
       : sec.paddingY === "md"
-      ? "py-4 sm:py-6"
+      ? isMobile ? "py-4" : "py-6"
       : sec.paddingY === "lg"
-      ? "py-6 sm:py-10"
+      ? isMobile ? "py-6" : "py-10"
       : "py-0";
 
   const paddingXClass =
@@ -1176,7 +1180,7 @@ function StoreProductCard({
           }}
         >
           <div
-            className="size-20 sm:size-24 shrink-0 relative overflow-hidden bg-fill/50"
+            className="size-20 shrink-0 relative overflow-hidden bg-fill/50"
             style={{ borderRadius: `${effImageRadius}px` }}
           >
             <div className="absolute top-1.5 left-1.5 z-10 flex flex-col gap-1 items-start">
@@ -1205,7 +1209,7 @@ function StoreProductCard({
                 {brand}
               </span>
             )}
-            <h3 className={cn("transition-colors group-hover:text-accent truncate", titleClass, dark ? "text-on-ink" : "text-ink")}>
+            <h3 className={cn("transition-colors group-hover:text-accent line-clamp-2 leading-snug", titleClass, dark ? "text-on-ink" : "text-ink")}>
               {title}
             </h3>
             {showPrice && (
@@ -1247,9 +1251,9 @@ function StoreProductCard({
     <article
       id={id}
       className={cn(
-        "group relative transition-all overflow-hidden",
-        isCarousel ? "w-44 sm:w-56 shrink-0 snap-start" : "w-full",
-        imageInset ? "p-2.5 sm:p-3" : ""
+        "group relative flex flex-col transition-all overflow-hidden",
+        isCarousel ? "w-48 shrink-0 snap-start" : "w-full",
+        imageInset ? "p-2.5" : ""
       )}
       style={{
         borderRadius: `${borderRadius}px`,
@@ -1364,8 +1368,8 @@ function StoreProductCard({
       {detailsLayout === "outer" && (
         <div
           className={cn(
-            "flex flex-col",
-            imageInset ? "pt-2 px-0.5 pb-0.5" : "p-3 sm:p-3.5",
+            "flex flex-1 flex-col",
+            imageInset ? "pt-2 px-0.5 pb-0.5" : "p-3",
             textAlign === "center" ? "items-center text-center" : "items-start text-left"
           )}
         >
@@ -1382,15 +1386,15 @@ function StoreProductCard({
                 {brand}
               </span>
             )}
-            <h3 className={cn("transition-colors group-hover:text-accent truncate", titleClass, dark ? "text-on-ink" : "text-ink")}>
+            <h3 className={cn("transition-colors group-hover:text-accent line-clamp-2 leading-snug", titleClass, dark ? "text-on-ink" : "text-ink")}>
               {title}
             </h3>
           </button>
 
-          <div className={cn("mt-2 sm:mt-2.5 flex items-center w-full", textAlign === "center" ? "justify-center gap-3" : "justify-between")}>
+          <div className={cn("mt-auto pt-2 flex items-center w-full", textAlign === "center" ? "justify-center gap-3" : "justify-between")}>
             {showPrice ? (
               <div className="flex items-baseline gap-1.5 flex-wrap min-w-0">
-                <span className="text-sm sm:text-base font-bold truncate" style={{ color: priceColor }}>
+                <span className="text-sm font-bold truncate" style={{ color: priceColor }}>
                   {formattedActivePrice}
                 </span>
                 {hasDiscount && (
@@ -1410,7 +1414,7 @@ function StoreProductCard({
                   e.stopPropagation();
                   onWhatsAppClick(e);
                 }}
-                className="tap-smooth inline-flex size-7.5 sm:size-8 items-center justify-center rounded-full text-white hover:scale-105 transition-all shadow-xs shrink-0 cursor-pointer"
+                className="tap-smooth inline-flex size-8 items-center justify-center rounded-full text-white hover:scale-105 transition-all shadow-xs shrink-0 cursor-pointer"
                 style={{ backgroundColor: buttonColor }}
               >
                 <WhatsAppIcon className="size-3.5 fill-white" />
@@ -1829,6 +1833,27 @@ function FilterSortView({
   const [isSortDrawerOpen, setIsSortDrawerOpen] = useState(false);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
 
+  const searchOpen = useEditor((s) => s.searchOpen);
+  const cartOpen = useEditor((s) => s.cartOpen);
+  const navSec = useEditor((s) =>
+    s.pages[s.pageId].sections.find((x) => x.type === "navbar"),
+  );
+
+  useEffect(() => {
+    if (searchOpen || cartOpen) {
+      setIsSortDrawerOpen(false);
+      setIsFilterDrawerOpen(false);
+    }
+  }, [searchOpen, cartOpen]);
+
+  const navHeight = navSec && navSec.type === "navbar" ? navSec.height || 56 : 56;
+  const navFloating =
+    navSec && navSec.type === "navbar"
+      ? (navSec.isFloating ?? navSec.template === "float")
+      : false;
+  const navSticky = navSec && navSec.type === "navbar" ? (navSec.sticky ?? true) : true;
+  const stickyTop = navSticky ? (navFloating ? navHeight + 16 : navHeight) : 0;
+
   const availableBrands = Array.from(new Set(products.map((p) => p.brand).filter(Boolean))) as string[];
   const dynamicCategories = ["All", ...Array.from(new Set(products.map((p) => p.category).filter(Boolean))) as string[]];
 
@@ -1849,22 +1874,33 @@ function FilterSortView({
     name_asc: "Name: A to Z",
   };
 
+  const chipClass = cn(
+    "inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs",
+    dark ? "bg-white/10 border-white/15 text-on-ink" : "bg-fill border-line-soft text-ink",
+  );
+  const chipDismissClass = cn(
+    "cursor-pointer",
+    dark ? "text-on-ink/60 hover:text-on-ink" : "text-muted hover:text-ink",
+  );
+
   return (
-    <SectionShell section={sec} background={sec.background} color={dark ? "#f5f5f7" : "#1d1d1f"}>
-      <div className={cn("pt-4 pb-2", gutter(device))}>
+    <SectionShell
+      section={sec}
+      background={layoutConfig.sticky ? colorWithOpacity(sec.background, 94) : sec.background}
+      color={dark ? "#f5f5f7" : "#1d1d1f"}
+      className={cn(
+        layoutConfig.sticky && "sticky z-10 backdrop-blur-md border-b",
+        layoutConfig.sticky && (dark ? "border-white/10" : "border-line-soft/60"),
+      )}
+      style={layoutConfig.sticky ? { top: `${stickyTop}px` } : undefined}
+    >
+      <div className={cn("pt-3 pb-2.5", gutter(device))}>
         {/* Tier 2: Utility Bar (Sort & Filters) */}
-        <div
-          className={cn(
-            "flex items-center justify-between gap-3 py-2.5 transition-all",
-            layoutConfig.sticky
-              ? "sticky top-14 z-20 backdrop-blur-md bg-surface/90 border-y border-line-soft/60 px-1 -mx-1"
-              : ""
-          )}
-        >
+        <div className="flex items-center justify-between gap-3">
           {/* Product Count */}
           <div>
             {layoutConfig.showItemCount && (
-              <span className="text-xs font-semibold text-muted tracking-tight">
+              <span className={cn("text-xs font-semibold tracking-tight", dark ? "text-on-ink/70" : "text-muted")}>
                 {sorted.length} {sorted.length === 1 ? "Product" : "Products"}
               </span>
             )}
@@ -1875,24 +1911,37 @@ function FilterSortView({
             {sortConfig.enabled && (
               <button
                 type="button"
-                onClick={() => setIsSortDrawerOpen(true)}
-                className="tap-smooth inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-line-soft bg-surface text-xs font-semibold text-ink shadow-2xs hover:bg-fill transition-colors cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsSortDrawerOpen(true);
+                }}
+                className={cn(
+                  "tap-smooth inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold shadow-2xs transition-colors cursor-pointer",
+                  dark
+                    ? "border-white/15 bg-white/10 text-on-ink hover:bg-white/15"
+                    : "border-line-soft bg-surface text-ink hover:bg-fill",
+                )}
               >
-                <ArrowUpDown className="size-3.5 text-muted" />
-                <span className="text-muted font-normal">Sort:</span>
+                <ArrowUpDown className={cn("size-3.5", dark ? "text-on-ink/60" : "text-muted")} />
+                <span className={cn("font-normal", dark ? "text-on-ink/60" : "text-muted")}>Sort:</span>
                 <span>{sortLabels[filterState.activeSort] || "Featured"}</span>
-                <ChevronDown className="size-3 text-muted ml-0.5" />
+                <ChevronDown className={cn("size-3 ml-0.5", dark ? "text-on-ink/60" : "text-muted")} />
               </button>
             )}
 
             <button
               type="button"
-              onClick={() => setIsFilterDrawerOpen(true)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsFilterDrawerOpen(true);
+              }}
               className={cn(
                 "tap-smooth inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold shadow-2xs transition-colors cursor-pointer",
                 activeFilterCount > 0
                   ? "border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-bold ring-1 ring-purple-600/30"
-                  : "border-line-soft bg-surface text-ink hover:bg-fill"
+                  : dark
+                    ? "border-white/15 bg-white/10 text-on-ink hover:bg-white/15"
+                    : "border-line-soft bg-surface text-ink hover:bg-fill"
               )}
             >
               <SlidersHorizontal className="size-3.5" />
@@ -1910,12 +1959,12 @@ function FilterSortView({
         {activeFilterCount > 0 && (
           <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
             {filterState.activeCategory !== "All" && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-fill border border-line-soft text-xs text-ink">
+              <span className={chipClass}>
                 <span>{filterState.activeCategory}</span>
                 <button
                   type="button"
                   onClick={() => useEditor.getState().setCatalogCategory("All")}
-                  className="text-muted hover:text-ink cursor-pointer"
+                  className={chipDismissClass}
                 >
                   <X className="size-3" />
                 </button>
@@ -1923,15 +1972,12 @@ function FilterSortView({
             )}
 
             {filterState.selectedBrands.map((brand) => (
-              <span
-                key={brand}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-fill border border-line-soft text-xs text-ink"
-              >
+              <span key={brand} className={chipClass}>
                 <span>{brand}</span>
                 <button
                   type="button"
                   onClick={() => useEditor.getState().toggleCatalogBrand(brand)}
-                  className="text-muted hover:text-ink cursor-pointer"
+                  className={chipDismissClass}
                 >
                   <X className="size-3" />
                 </button>
@@ -1939,7 +1985,7 @@ function FilterSortView({
             ))}
 
             {filterState.priceBracket !== "all" && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-fill border border-line-soft text-xs text-ink">
+              <span className={chipClass}>
                 <span>
                   {filterState.priceBracket === "under_100"
                     ? "Under $100"
@@ -1950,7 +1996,7 @@ function FilterSortView({
                 <button
                   type="button"
                   onClick={() => useEditor.getState().setCatalogPriceBracket("all")}
-                  className="text-muted hover:text-ink cursor-pointer"
+                  className={chipDismissClass}
                 >
                   <X className="size-3" />
                 </button>
@@ -1958,12 +2004,12 @@ function FilterSortView({
             )}
 
             {filterState.inStockOnly && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-fill border border-line-soft text-xs text-ink">
+              <span className={chipClass}>
                 <span>In Stock Only</span>
                 <button
                   type="button"
                   onClick={() => useEditor.getState().toggleCatalogInStockOnly()}
-                  className="text-muted hover:text-ink cursor-pointer"
+                  className={chipDismissClass}
                 >
                   <X className="size-3" />
                 </button>
@@ -2177,6 +2223,11 @@ function ProductView({
   const colorGroup = sec.variants?.find((v) => v.name.toLowerCase() === "color");
   const sizeGroup = sec.variants?.find((v) => v.name.toLowerCase() === "size");
 
+  const matchedColorOption = colorGroup?.options.find(
+    (o) => o.label === selectedColor || o.colorHex === selectedColor,
+  );
+  const displayColor = matchedColorOption?.label ?? selectedColor;
+
   const selectedSizeOption = sizeGroup?.options.find((o) => o.label === selectedSize);
   const sizePriceDelta = selectedSizeOption?.priceDelta || 0;
 
@@ -2220,16 +2271,16 @@ function ProductView({
 
   const titleSizeClass =
     sec.titleFontSize === "sm"
-      ? "text-xl sm:text-2xl"
+      ? wide ? "text-2xl" : "text-xl"
       : sec.titleFontSize === "lg"
-        ? "text-3xl sm:text-4xl"
+        ? wide ? "text-4xl" : "text-3xl"
         : sec.titleFontSize === "xl"
-          ? "text-3xl sm:text-5xl"
+          ? wide ? "text-5xl" : "text-3xl"
           : sec.typography === "sm"
-            ? "text-2xl sm:text-3xl"
+            ? wide ? "text-3xl" : "text-2xl"
             : sec.typography === "lg"
-              ? "text-3xl sm:text-5xl"
-              : "text-2xl sm:text-4xl";
+              ? wide ? "text-5xl" : "text-3xl"
+              : wide ? "text-4xl" : "text-2xl";
 
   const titleWeightClass =
     sec.titleFontWeight === "normal"
@@ -2254,7 +2305,7 @@ function ProductView({
     let specsText = "";
     if (sec.brand) specsText += `🏷️ *Brand:* ${sec.brand}\n`;
     if (sec.category) specsText += `📁 *Category:* ${sec.category}\n`;
-    if (selectedColor) specsText += `🎨 *Color:* ${selectedColor}\n`;
+    if (displayColor) specsText += `🎨 *Color:* ${displayColor}\n`;
     if (selectedSize) specsText += `📏 *Size:* ${selectedSize}\n`;
 
     const statusText = isOutOfStock
@@ -2386,14 +2437,14 @@ function ProductView({
   const info = (
     <div className={cn(wide || isSplit ? "flex flex-col justify-center" : "pt-6")}>
       {/* Category & Brand Breadcrumbs */}
-      <div className="flex items-center gap-1.5 text-xs text-muted mb-2 font-medium">
+      <div className={cn("flex items-center gap-1.5 text-xs mb-2 font-medium", dark ? "text-on-ink/60" : "text-muted")}>
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             if (preview) useEditor.getState().switchPage("home");
           }}
-          className="hover:text-ink transition-colors cursor-pointer"
+          className={cn("transition-colors cursor-pointer", dark ? "hover:text-on-ink" : "hover:text-ink")}
         >
           Home
         </button>
@@ -2404,21 +2455,21 @@ function ProductView({
             e.stopPropagation();
             if (preview) useEditor.getState().switchPage("shop");
           }}
-          className="hover:text-ink transition-colors cursor-pointer"
+          className={cn("transition-colors cursor-pointer", dark ? "hover:text-on-ink" : "hover:text-ink")}
         >
           {sec.category || "Catalog"}
         </button>
         {sec.brand && (
           <>
             <span>/</span>
-            <span className="text-ink font-semibold">{sec.brand}</span>
+            <span className={cn("font-semibold", dark ? "text-on-ink" : "text-ink")}>{sec.brand}</span>
           </>
         )}
       </div>
 
       <h1 className={cn("tracking-tight", titleClass)}>{sec.productName}</h1>
 
-      {/* Stock availability & Discount badge */}
+      {/* Stock availability */}
       <div className="mt-2.5 flex items-center gap-2.5 flex-wrap">
         {isOutOfStock ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/80 px-2.5 py-1 text-xs font-semibold text-rose-700 dark:text-rose-300">
@@ -2436,24 +2487,18 @@ function ProductView({
             <span>In Stock ({currentStock} available)</span>
           </span>
         )}
-
-        {hasDiscount && discountPct > 0 && (
-          <span className="inline-flex items-center rounded-md bg-rose-600 px-2 py-0.5 text-xs font-bold text-white uppercase shadow-xs">
-            {discountPct}% OFF
-          </span>
-        )}
       </div>
 
       {/* Price with strikethrough regular price */}
       <div className="mt-3.5 flex items-baseline gap-2.5 flex-wrap">
         <span
-          className="text-2xl sm:text-3xl font-extrabold tracking-tight"
+          className={cn("font-extrabold tracking-tight", device === "mobile" ? "text-2xl" : "text-3xl")}
           style={{ color: sec.priceColor || (dark ? "#34d399" : "#059669") }}
         >
           {money(currentPrice, sec.currency || "$")}
         </span>
         {hasDiscount && (
-          <span className="text-base text-slate-400 dark:text-slate-500 line-through font-normal">
+          <span className={cn("text-base line-through font-normal", dark ? "text-on-ink/50" : "text-slate-400")}>
             {money(currentRegularPrice, sec.currency || "$")}
           </span>
         )}
@@ -2473,8 +2518,8 @@ function ProductView({
             <p className={cn("text-xs font-semibold uppercase tracking-wider", dark ? "text-on-ink/70" : "text-muted")}>
               Select Color
             </p>
-            {selectedColor && (
-              <span className="text-xs font-medium text-ink">{selectedColor}</span>
+            {displayColor && (
+              <span className={cn("text-xs font-medium", dark ? "text-on-ink" : "text-ink")}>{displayColor}</span>
             )}
           </div>
           <div className="mt-2.5 flex gap-2.5 flex-wrap">
@@ -2495,8 +2540,12 @@ function ProductView({
                     className={cn(
                       "tap-smooth flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all cursor-pointer",
                       isSelected
-                        ? "border-purple-600 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 ring-2 ring-purple-600/30 font-semibold"
-                        : "border-line-soft bg-surface hover:border-slate-300 dark:hover:border-slate-700 text-ink"
+                        ? dark
+                          ? "border-purple-400 bg-purple-500/20 text-purple-200 ring-2 ring-purple-400/30 font-semibold"
+                          : "border-purple-600 bg-purple-50 text-purple-700 ring-2 ring-purple-600/30 font-semibold"
+                        : dark
+                          ? "border-white/15 bg-white/5 hover:border-white/30 text-on-ink"
+                          : "border-line-soft bg-surface hover:border-slate-300 text-ink"
                     )}
                   >
                     {opt.colorHex && (
@@ -2540,7 +2589,7 @@ function ProductView({
               Select Size
             </p>
             {selectedSize && (
-              <span className="text-xs font-medium text-ink">{selectedSize}</span>
+              <span className={cn("text-xs font-medium", dark ? "text-on-ink" : "text-ink")}>{selectedSize}</span>
             )}
           </div>
           <div className="mt-2.5 flex flex-wrap gap-2">
@@ -2564,7 +2613,9 @@ function ProductView({
                         ? "border-slate-200 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-900/50 text-slate-400 line-through cursor-not-allowed opacity-50"
                         : isSelected
                           ? "border-purple-600 bg-purple-600 text-white shadow-xs cursor-pointer scale-102"
-                          : "border-line-soft bg-surface hover:border-slate-300 text-ink cursor-pointer"
+                          : dark
+                            ? "border-white/15 bg-white/5 hover:border-white/30 text-on-ink cursor-pointer"
+                            : "border-line-soft bg-surface hover:border-slate-300 text-ink cursor-pointer"
                     )}
                   >
                     <span>{opt.label}</span>
@@ -2709,40 +2760,6 @@ function ProductView({
   );
 }
 
-function JoinForm({ dark }: { dark: boolean }) {
-  const [email, setEmail] = useState("");
-  const preview = useEditor((s) => s.preview);
-  return (
-    <form
-      className="flex gap-2"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (!preview) return;
-        event.stopPropagation();
-        if (!email.trim()) return;
-        setEmail("");
-        useEditor.getState().showToast("You're on the list.");
-      }}
-    >
-      <input
-        type="email"
-        required
-        value={email}
-        placeholder="Email"
-        onClick={(event) => event.stopPropagation()}
-        onChange={(event) => setEmail(event.target.value)}
-        className={cn(
-          "h-11 min-w-0 flex-1 rounded-full px-4 text-sm outline-none",
-          dark ? "bg-on-ink/10 text-on-ink placeholder:text-on-ink/50" : "bg-surface text-ink",
-        )}
-      />
-      <button type="submit" className={cn(solid(dark), "shrink-0 px-5")}>
-        Join
-      </button>
-    </form>
-  );
-}
-
 function FooterView({
   sec,
   device,
@@ -2752,6 +2769,10 @@ function FooterView({
 }) {
   const dark = isDark(sec.background);
   const preview = useEditor((s) => s.preview);
+  const navPhone = useEditor((s) => {
+    const nav = s.pages[s.pageId].sections.find((x) => x.type === "navbar");
+    return nav && nav.type === "navbar" ? nav.whatsappNumber : undefined;
+  });
   const link = (label: string, page?: PageId) => (
     <button
       type="button"
@@ -2772,7 +2793,7 @@ function FooterView({
       <SectionShell section={sec} background={sec.background} color={sec.text}>
         <div className={cn("grid gap-8 py-12", gutter(device), device === "desktop" ? "grid-cols-4" : "grid-cols-2")}>
           <div className={device === "mobile" ? "col-span-2" : ""}>
-            <p className="text-sm font-semibold tracking-widest text-ink" style={{ color: isDark(sec.background) ? "#f5f5f7" : "#1d1d1f" }}>
+            <p className="text-sm font-semibold tracking-widest" style={{ color: dark ? "#f5f5f7" : "#1d1d1f" }}>
               {sec.brand}
             </p>
             <p className="mt-3 max-w-xs text-sm leading-relaxed">Everyday footwear and modular layers.</p>
@@ -2784,16 +2805,30 @@ function FooterView({
             {link("Featured", "product")}
           </div>
           <div className="flex flex-col gap-2">
-            <p className="text-xs font-medium tracking-widest uppercase opacity-60">Company</p>
-            {link("About")}
-            {link("Stores")}
+            <p className="text-xs font-medium tracking-widest uppercase opacity-60">Support</p>
+            {link("Privacy")}
+            {link("Terms")}
             {link("Care")}
           </div>
           <div className={device === "mobile" ? "col-span-2" : ""}>
-            <p className="text-xs font-medium tracking-widest uppercase opacity-60">Notes</p>
-            <div className="mt-3">
-              <JoinForm dark={dark} />
-            </div>
+            <p className="text-xs font-medium tracking-widest uppercase opacity-60">Concierge</p>
+            <p className="mt-3 text-xs leading-relaxed opacity-75">
+              Instant sizing help and direct order tracking on WhatsApp.
+            </p>
+            <button
+              type="button"
+              onClick={(event) => {
+                if (!preview) return;
+                event.stopPropagation();
+                const phone = (navPhone || "919876543210").replace(/[^0-9]/g, "") || "919876543210";
+                const msg = `Hi! I have a question about ${sec.brand || "Ziteo"}.`;
+                window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
+              }}
+              className="tap-smooth mt-3 inline-flex h-10 items-center gap-2 rounded-full bg-[#25D366] px-4 text-xs font-semibold text-white shadow-xs hover:opacity-95"
+            >
+              <WhatsAppIcon className="size-3.5 fill-white" />
+              <span>Chat on WhatsApp</span>
+            </button>
           </div>
         </div>
         <p className={cn("pb-8 text-xs opacity-70", gutter(device))}>{sec.copy}</p>
@@ -2804,7 +2839,7 @@ function FooterView({
   return (
     <SectionShell section={sec} background={sec.background} color={sec.text}>
       <div className="px-5 py-10 text-center">
-        <p className="text-sm font-semibold tracking-widest" style={{ color: isDark(sec.background) ? "#f5f5f7" : "#1d1d1f" }}>
+        <p className="text-sm font-semibold tracking-widest" style={{ color: dark ? "#f5f5f7" : "#1d1d1f" }}>
           {sec.brand}
         </p>
         <div className="mt-4 flex justify-center gap-5">
@@ -2889,12 +2924,7 @@ function FeaturedView({
   const dark = isDark(sec.background);
   const preview = useEditor((s) => s.preview);
   const isCarousel = sec.template === "carousel";
-  const cols =
-    device === "desktop"
-      ? "grid-cols-4"
-      : device === "tablet"
-        ? "grid-cols-3"
-        : "grid-cols-2";
+  const cols = device === "desktop" ? "grid-cols-4" : "grid-cols-2";
 
   const openItem = (item: (typeof sec.items)[number]) => {
     const num = Number(item.price.replace(/[^0-9.]/g, ""));
@@ -3067,7 +3097,7 @@ function CategoriesView({
         </div>
 
         {isStory ? (
-          <div className="no-scrollbar flex gap-4 overflow-x-auto pb-2 justify-start sm:justify-center">
+          <div className={cn("no-scrollbar flex gap-4 overflow-x-auto pb-2", device === "mobile" ? "justify-start" : "justify-center")}>
             {sec.items.map((cat) => (
               <button
                 key={cat.id}
@@ -3079,18 +3109,18 @@ function CategoriesView({
                 className="group flex flex-col items-center gap-2 shrink-0 tap-smooth focus:outline-hidden"
               >
                 <div className="p-0.5 rounded-full bg-gradient-to-tr from-accent to-purple-500 shadow-xs group-hover:scale-105 transition-transform duration-300">
-                  <div className="p-0.5 rounded-full bg-surface">
+                  <div className={cn("p-0.5 rounded-full", dark ? "bg-zinc-900" : "bg-surface")}>
                     <img
                       src={cat.image}
                       alt=""
-                      className="size-16 sm:size-20 rounded-full object-cover"
+                      className={cn("rounded-full object-cover", device === "mobile" ? "size-16" : "size-20")}
                     />
                   </div>
                 </div>
-                <span className="text-xs font-semibold text-ink group-hover:text-accent transition-colors">
+                <span className={cn("text-xs font-semibold group-hover:text-accent transition-colors", dark ? "text-on-ink" : "text-ink")}>
                   {cat.name}
                 </span>
-                {cat.count && <span className="text-[10px] text-muted -mt-1">{cat.count}</span>}
+                {cat.count && <span className={cn("text-[10px] -mt-1", dark ? "text-on-ink/60" : "text-muted")}>{cat.count}</span>}
               </button>
             ))}
           </div>
@@ -3105,18 +3135,18 @@ function CategoriesView({
                   handleClick(cat.name);
                 }}
                 className={cn(
-                  "tap-smooth flex items-center gap-2.5 rounded-full border border-line-soft px-3 py-1.5 shrink-0 transition-all hover:scale-105 shadow-2xs",
-                  dark ? "bg-white/10 text-white" : "bg-surface text-ink hover:bg-fill"
+                  "tap-smooth flex items-center gap-2.5 rounded-full border px-3 py-1.5 shrink-0 transition-all hover:scale-105 shadow-2xs",
+                  dark ? "border-white/15 bg-white/10 text-white" : "border-line-soft bg-surface text-ink hover:bg-fill"
                 )}
               >
                 <img src={cat.image} alt="" className="size-6 rounded-full object-cover" />
                 <span className="text-xs font-semibold">{cat.name}</span>
-                {cat.count && <span className="text-[10px] text-muted">{cat.count}</span>}
+                {cat.count && <span className={cn("text-[10px]", dark ? "text-on-ink/65" : "text-muted")}>{cat.count}</span>}
               </button>
             ))}
           </div>
         ) : isGrid ? (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className={cn("grid gap-3", device === "mobile" ? "grid-cols-2" : "grid-cols-4")}>
             {sec.items.map((cat) => (
               <button
                 key={cat.id}
@@ -3125,23 +3155,26 @@ function CategoriesView({
                   e.stopPropagation();
                   handleClick(cat.name);
                 }}
-                className="group tap-smooth-sm flex flex-col items-center gap-2 rounded-2xl border border-line-soft bg-surface p-3 text-center shadow-2xs hover:border-line transition-all"
+                className={cn(
+                  "group tap-smooth-sm flex flex-col items-center gap-2 rounded-2xl border p-3 text-center shadow-2xs transition-all",
+                  dark ? "border-white/10 bg-white/5 hover:border-white/25" : "border-line-soft bg-surface hover:border-line"
+                )}
               >
-                <div className="size-16 sm:size-20 overflow-hidden rounded-full bg-fill/50">
+                <div className={cn("overflow-hidden rounded-full bg-fill/50", device === "mobile" ? "size-16" : "size-20")}>
                   <img
                     src={cat.image}
                     alt=""
                     className="size-full object-cover transition-transform duration-300 group-hover:scale-110"
                   />
                 </div>
-                <span className="text-xs font-semibold text-ink group-hover:text-accent transition-colors">
+                <span className={cn("text-xs font-semibold group-hover:text-accent transition-colors", dark ? "text-on-ink" : "text-ink")}>
                   {cat.name}
                 </span>
               </button>
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+          <div className={cn("grid gap-3.5", device === "mobile" ? "grid-cols-2" : "grid-cols-4")}>
             {sec.items.map((cat) => (
               <button
                 key={cat.id}
@@ -3150,7 +3183,10 @@ function CategoriesView({
                   e.stopPropagation();
                   handleClick(cat.name);
                 }}
-                className="group tap-smooth-sm relative aspect-[4/5] sm:aspect-square overflow-hidden rounded-3xl text-left shadow-xs transition-transform duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                className={cn(
+                  "group tap-smooth-sm relative overflow-hidden rounded-3xl text-left shadow-xs transition-transform duration-300 hover:scale-[1.02] active:scale-[0.98]",
+                  device === "mobile" ? "aspect-[4/5]" : "aspect-square"
+                )}
               >
                 <img
                   src={cat.image}
@@ -3214,10 +3250,12 @@ function BrandsView({
 
   const filterClass =
     sec.colorFilter === "original"
-      ? "opacity-90 hover:opacity-100"
+      ? "opacity-95 hover:opacity-100"
       : sec.colorFilter === "inverted"
-      ? "invert opacity-70 hover:opacity-100 hover:invert-0"
-      : "grayscale opacity-50 hover:grayscale-0 hover:opacity-100";
+      ? "invert opacity-85 hover:opacity-100 hover:invert-0"
+      : dark
+        ? "opacity-85 hover:opacity-100"
+        : "grayscale opacity-65 hover:grayscale-0 hover:opacity-100";
 
   // Duplicate items for marquee to ensure continuous loop
   const marqueeItems = [...sec.items, ...sec.items, ...sec.items, ...sec.items];
@@ -3232,7 +3270,7 @@ function BrandsView({
               {sec.trustBadge}
             </div>
           )}
-          <h2 className="text-xs font-bold tracking-widest text-muted uppercase">{sec.title}</h2>
+          <h2 className={cn("text-xs font-bold tracking-widest uppercase", dark ? "text-on-ink/60" : "text-muted")}>{sec.title}</h2>
           {sec.subtitle && (
             <p className={cn("mt-1 text-xs", dark ? "text-on-ink/60" : "text-muted")}>
               {sec.subtitle}
@@ -3241,13 +3279,17 @@ function BrandsView({
         </div>
 
         {isEditorial ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className={cn("grid gap-4", device === "desktop" ? "grid-cols-3" : device === "tablet" ? "grid-cols-2" : "grid-cols-1")}>
             {sec.items.map((b) => (
               <button
                 key={b.id}
                 type="button"
                 onClick={() => handleBrandClick(b.name)}
-                className="group relative overflow-hidden rounded-3xl aspect-[16/10] sm:aspect-[4/3] text-left tap-smooth-sm shadow-sm border border-line-soft/40"
+                className={cn(
+                  "group relative overflow-hidden rounded-3xl text-left tap-smooth-sm shadow-sm border",
+                  dark ? "border-white/15" : "border-line-soft/40",
+                  device === "mobile" ? "aspect-[16/10]" : "aspect-[4/3]"
+                )}
               >
                 <img
                   src={b.image || PHOTOS.sport}
@@ -3260,7 +3302,7 @@ function BrandsView({
                       {b.tagline}
                     </span>
                   )}
-                  <h3 className="text-xl sm:text-2xl font-black tracking-tight">{b.name}</h3>
+                  <h3 className={cn("font-black tracking-tight", device === "mobile" ? "text-xl" : "text-2xl")}>{b.name}</h3>
                   <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-white/90 group-hover:text-white transition-colors">
                     <span>{b.buttonText || "Shop Collection"}</span>
                     <span className="transition-transform group-hover:translate-x-1">→</span>
@@ -3270,7 +3312,7 @@ function BrandsView({
             ))}
           </div>
         ) : isStory ? (
-          <div className="no-scrollbar flex items-center justify-start sm:justify-center gap-4 overflow-x-auto py-2">
+          <div className={cn("no-scrollbar flex items-center gap-4 overflow-x-auto py-2", device === "mobile" ? "justify-start" : "justify-center")}>
             {sec.items.map((b) => (
               <button
                 key={b.id}
@@ -3279,24 +3321,30 @@ function BrandsView({
                 className="group flex flex-col items-center gap-2 shrink-0 tap-smooth focus:outline-hidden"
               >
                 <div className="p-0.5 rounded-full bg-gradient-to-tr from-accent to-purple-500 shadow-xs group-hover:scale-105 transition-transform duration-300">
-                  <div className="p-0.5 rounded-full bg-surface">
+                  <div className={cn("p-0.5 rounded-full", dark ? "bg-zinc-900" : "bg-surface")}>
                     {b.image ? (
                       <img
                         src={b.image}
                         alt={b.name}
-                        className="size-16 sm:size-18 rounded-full object-cover"
+                        className={cn("rounded-full object-cover", device === "mobile" ? "size-16" : "size-18")}
                       />
                     ) : (
-                      <div className="size-16 sm:size-18 rounded-full bg-fill/80 flex items-center justify-center font-black text-sm text-ink">
+                      <div
+                        className={cn(
+                          "rounded-full flex items-center justify-center font-black text-sm",
+                          device === "mobile" ? "size-16" : "size-18",
+                          dark ? "bg-white/10 text-on-ink" : "bg-fill/80 text-ink"
+                        )}
+                      >
                         {b.name.slice(0, 2)}
                       </div>
                     )}
                   </div>
                 </div>
-                <span className="text-xs font-bold text-ink group-hover:text-accent transition-colors">
+                <span className={cn("text-xs font-bold group-hover:text-accent transition-colors", dark ? "text-on-ink" : "text-ink")}>
                   {b.name}
                 </span>
-                {b.tagline && <span className="text-[9px] text-muted -mt-1.5">{b.tagline}</span>}
+                {b.tagline && <span className={cn("text-[9px] -mt-1.5", dark ? "text-on-ink/60" : "text-muted")}>{b.tagline}</span>}
               </button>
             ))}
           </div>
@@ -3315,14 +3363,20 @@ function BrandsView({
                   type="button"
                   onClick={() => handleBrandClick(b.name)}
                   className={cn(
-                    "tap-smooth flex items-center gap-3 rounded-2xl px-6 py-3.5 mx-2 border border-line-soft transition-all duration-300 hover:scale-105",
-                    dark ? "bg-white/5 border-white/10" : "bg-surface hover:bg-fill/60 shadow-2xs",
+                    "tap-smooth flex items-center gap-3 rounded-2xl px-6 py-3.5 mx-2 border transition-all duration-300 hover:scale-105",
+                    dark ? "bg-white/10 border-white/15 hover:bg-white/15" : "bg-surface border-line-soft hover:bg-fill/60 shadow-2xs",
                     filterClass
                   )}
                 >
-                  <span className="text-base font-black tracking-widest text-ink">{b.name}</span>
+                  <span className={cn("text-base font-black tracking-widest", dark ? "text-on-ink" : "text-ink")}>{b.name}</span>
                   {b.tagline && (
-                    <span className="hidden sm:inline text-[10px] font-medium text-muted border-l border-line-soft pl-2.5">
+                    <span
+                      className={cn(
+                        "text-[10px] font-medium border-l pl-2.5",
+                        device === "mobile" ? "hidden" : "inline",
+                        dark ? "text-on-ink/70 border-white/15" : "text-muted border-line-soft"
+                      )}
+                    >
                       {b.tagline}
                     </span>
                   )}
@@ -3337,10 +3391,10 @@ function BrandsView({
               sec.columns === 2
                 ? "grid-cols-2"
                 : sec.columns === 4
-                ? "grid-cols-2 sm:grid-cols-4"
+                ? device === "mobile" ? "grid-cols-2" : "grid-cols-4"
                 : sec.columns === 6
-                ? "grid-cols-3 sm:grid-cols-6"
-                : "grid-cols-2 sm:grid-cols-3"
+                ? device === "mobile" ? "grid-cols-3" : "grid-cols-6"
+                : device === "mobile" ? "grid-cols-2" : "grid-cols-3"
             )}
           >
             {sec.items.map((b) => (
@@ -3349,14 +3403,14 @@ function BrandsView({
                 type="button"
                 onClick={() => handleBrandClick(b.name)}
                 className={cn(
-                  "tap-smooth flex flex-col items-center justify-center rounded-2xl border border-line-soft p-5 text-center shadow-2xs transition-all hover:scale-105",
-                  dark ? "bg-white/5 border-white/10" : "bg-surface hover:bg-fill/60",
+                  "tap-smooth flex flex-col items-center justify-center rounded-2xl border p-5 text-center shadow-2xs transition-all hover:scale-105",
+                  dark ? "bg-white/10 border-white/15 hover:bg-white/15" : "bg-surface border-line-soft hover:bg-fill/60",
                   filterClass
                 )}
               >
-                <span className="text-base font-black tracking-widest text-ink">{b.name}</span>
+                <span className={cn("text-base font-black tracking-widest", dark ? "text-on-ink" : "text-ink")}>{b.name}</span>
                 {b.tagline && (
-                  <span className="text-[10px] font-medium text-muted mt-1">{b.tagline}</span>
+                  <span className={cn("text-[10px] font-medium mt-1", dark ? "text-on-ink/65" : "text-muted")}>{b.tagline}</span>
                 )}
               </button>
             ))}
@@ -3369,13 +3423,13 @@ function BrandsView({
                 type="button"
                 onClick={() => handleBrandClick(b.name)}
                 className={cn(
-                  "tap-smooth flex flex-col items-center justify-center rounded-2xl border border-line-soft px-5 py-3 shadow-2xs transition-all hover:scale-105 shrink-0 min-w-28",
-                  dark ? "bg-white/5 border-white/10" : "bg-surface hover:bg-fill/60"
+                  "tap-smooth flex flex-col items-center justify-center rounded-2xl border px-5 py-3 shadow-2xs transition-all hover:scale-105 shrink-0 min-w-28",
+                  dark ? "bg-white/10 border-white/15 hover:bg-white/15" : "bg-surface border-line-soft hover:bg-fill/60"
                 )}
               >
-                <span className="text-sm font-black tracking-widest text-ink">{b.name}</span>
+                <span className={cn("text-sm font-black tracking-widest", dark ? "text-on-ink" : "text-ink")}>{b.name}</span>
                 {b.tagline && (
-                  <span className="text-[9px] font-medium text-muted mt-0.5">{b.tagline}</span>
+                  <span className={cn("text-[9px] font-medium mt-0.5", dark ? "text-on-ink/65" : "text-muted")}>{b.tagline}</span>
                 )}
               </button>
             ))}
@@ -3400,18 +3454,18 @@ function AboutView({
   return (
     <SectionShell section={sec} background={sec.background} color={sec.text}>
       <div className={cn("py-12", gutter(device))}>
-        <div className={cn(isSplit ? "grid grid-cols-1 sm:grid-cols-2 gap-8 items-center" : "")}>
+        <div className={cn(isSplit ? cn("grid gap-8 items-center", device === "mobile" ? "grid-cols-1" : "grid-cols-2") : "")}>
           {sec.image && isSplit && (
             <div className="overflow-hidden rounded-3xl shadow-sm">
               <img
                 src={sec.image}
                 alt=""
-                className="aspect-square sm:aspect-[4/3] w-full object-cover transition-transform duration-700 hover:scale-105"
+                className={cn("w-full object-cover transition-transform duration-700 hover:scale-105", device === "mobile" ? "aspect-square" : "aspect-[4/3]")}
               />
             </div>
           )}
           <div>
-            <span className="text-xs font-bold tracking-widest text-muted uppercase">
+            <span className={cn("text-xs font-bold tracking-widest uppercase", dark ? "text-on-ink/60" : "text-muted")}>
               {sec.kicker}
             </span>
             <h2 className={cn("mt-2 font-semibold tracking-tight", device === "mobile" ? "text-2xl" : "text-3xl")}>
@@ -3421,7 +3475,7 @@ function AboutView({
               {sec.story}
             </p>
 
-            <div className={cn("mt-6 grid gap-3", isCards ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1")}>
+            <div className={cn("mt-6 grid gap-3", isCards && device !== "mobile" ? "grid-cols-3" : "grid-cols-1")}>
               {sec.features.map((f) => (
                 <div
                   key={f.id}
@@ -3434,8 +3488,8 @@ function AboutView({
                     ✓
                   </div>
                   <div>
-                    <h3 className="text-xs font-semibold text-ink">{f.title}</h3>
-                    <p className="mt-0.5 text-[11px] text-muted leading-snug">{f.description}</p>
+                    <h3 className={cn("text-xs font-semibold", dark ? "text-on-ink" : "text-ink")}>{f.title}</h3>
+                    <p className={cn("mt-0.5 text-[11px] leading-snug", dark ? "text-on-ink/65" : "text-muted")}>{f.description}</p>
                   </div>
                 </div>
               ))}
@@ -3757,6 +3811,7 @@ export function SiteFrame({ className }: { className?: string }) {
   const pageId = useEditor((s) => s.pageId);
   const device = useEditor((s) => s.device);
   const selectedId = useEditor((s) => s.selectedId);
+  const preview = useEditor((s) => s.preview);
 
   if (selectedId === "product-card") {
     return (
@@ -3779,7 +3834,13 @@ export function SiteFrame({ className }: { className?: string }) {
       )}
       style={{ background: page.background }}
     >
-      <div key={pageId} className="animate-page-enter no-scrollbar h-full overflow-y-auto overscroll-contain">
+      <div
+        key={pageId}
+        className={cn(
+          "animate-page-enter no-scrollbar h-full overflow-y-auto overscroll-contain",
+          !preview && "pb-28",
+        )}
+      >
         {page.sections.map((sec) => renderSection(sec, device))}
       </div>
       <SiteMenu />

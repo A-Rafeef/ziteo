@@ -765,6 +765,7 @@ export const useEditor = create<EditorState>((set, get) => {
                       text: curNav.text,
                       linkColor: curNav.linkColor,
                       iconColor: curNav.iconColor,
+                      borderColor: curNav.borderColor,
                     } as Section)
                   : s,
               );

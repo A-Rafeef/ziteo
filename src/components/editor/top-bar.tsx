@@ -159,8 +159,8 @@ export function TopBar() {
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
         <button
           type="button"
-          title="Home / Projects"
-          aria-label="Home"
+          title="Go to Home page"
+          aria-label="Go to Home page"
           onClick={() => useEditor.getState().switchPage("home")}
           className="tap-smooth flex size-9 items-center justify-center rounded-xl text-[#53389E] hover:bg-purple-50 transition-all active:scale-95"
         >
@@ -294,18 +294,20 @@ export function TopBar() {
         </div>
       </div>
 
-      {/* Right: Preview (desktop) + Publish (desktop) + Hamburger Menu */}
+      {/* Right: Preview + Publish + More Options */}
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
         <button
           type="button"
+          aria-label={preview ? "Exit Preview" : "Preview"}
+          title={preview ? "Exit Preview" : "Preview"}
           onClick={() => useEditor.getState().togglePreview()}
           className={cn(
-            "tap-smooth hidden sm:inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition-all",
+            "tap-smooth inline-flex h-9 items-center justify-center gap-1.5 rounded-xl px-2.5 sm:px-3 text-xs font-semibold transition-all",
             preview ? "bg-slate-800 text-white" : "text-slate-700 hover:bg-slate-100",
           )}
         >
           <Eye className="size-4" strokeWidth={1.75} />
-          <span>{preview ? "Done" : "Preview"}</span>
+          <span className="hidden sm:inline">{preview ? "Done" : "Preview"}</span>
         </button>
 
         <button
@@ -320,8 +322,8 @@ export function TopBar() {
         <div ref={moreRef} className="relative">
           <button
             type="button"
-            aria-label="Menu"
-            title="Menu"
+            aria-label="More options"
+            title="More options"
             onClick={() => {
               setMoreOpen((open) => !open);
               setPageOpen(false);

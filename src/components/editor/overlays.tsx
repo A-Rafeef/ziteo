@@ -268,10 +268,16 @@ function PublishModal() {
 
 function Toast() {
   const toast = useEditor((s) => s.toast);
+  const preview = useEditor((s) => s.preview);
   if (!toast) return null;
   return (
-    <div className="pointer-events-none fixed top-16 left-1/2 z-toast -translate-x-1/2">
-      <div className={cn("animate-slide-down rounded-full bg-ink px-4 py-2 text-sm font-medium text-on-ink shadow-float")}>
+    <div
+      className={cn(
+        "pointer-events-none fixed left-1/2 z-toast -translate-x-1/2",
+        preview ? "bottom-6" : "bottom-24",
+      )}
+    >
+      <div className="animate-scale-in rounded-full bg-ink px-4 py-2 text-xs sm:text-sm font-medium text-on-ink shadow-xl">
         {toast}
       </div>
     </div>
