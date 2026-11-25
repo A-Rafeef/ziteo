@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Dock } from "@/components/editor/dock";
 import { Overlays } from "@/components/editor/overlays";
+import { PageSectionsSidebar } from "@/components/editor/page-sections-panel";
 import { Sheet } from "@/components/editor/sheet";
 import { SiteFrame } from "@/components/editor/site";
 import { TopBar } from "@/components/editor/top-bar";
@@ -37,8 +38,11 @@ export function Editor() {
           STORAGE_KEY,
           JSON.stringify({ pages: state.pages, pageId: state.pageId, cart: state.cart }),
         );
+        if (state.saveStatus !== "published" && state.saveStatus !== "publishing") {
+          useEditor.getState().setSaveStatus(state.hasUnpublishedChanges ? "unpublished" : "draft_saved");
+        }
       } catch {
-        // Ignore storage quota errors so editing remains responsive.
+        useEditor.getState().setSaveStatus("save_failed", "Could not save draft locally.");
       }
     });
   }, []);
@@ -80,26 +84,29 @@ export function Editor() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-canvas text-ink">
       <TopBar />
-      <main
-        className="min-h-0 flex-1 overflow-auto"
-        onClick={() => {
-          if (!useEditor.getState().preview) useEditor.getState().deselect();
-        }}
-      >
-        <div className="flex h-full min-h-full justify-center px-1 sm:px-3 py-1 sm:py-3">
-          <div
-            className={cn("h-full shrink-0 device-frame", frame)}
-            style={
-              zoom === 100
-                ? undefined
-                : { transform: `scale(${zoom / 100})`, transformOrigin: "top center" }
-            }
-            onClick={(event) => event.stopPropagation()}
-          >
-            <SiteFrame />
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        {!preview && <PageSectionsSidebar />}
+        <main
+          className="min-h-0 flex-1 overflow-auto"
+          onClick={() => {
+            if (!useEditor.getState().preview) useEditor.getState().deselect();
+          }}
+        >
+          <div className="flex h-full min-h-full justify-center px-1 sm:px-3 py-1 sm:py-3">
+            <div
+              className={cn("h-full shrink-0 device-frame", frame)}
+              style={
+                zoom === 100
+                  ? undefined
+                  : { transform: `scale(${zoom / 100})`, transformOrigin: "top center" }
+              }
+              onClick={(event) => event.stopPropagation()}
+            >
+              <SiteFrame />
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
       {!preview && <Dock />}
       <Sheet />
       <Overlays />

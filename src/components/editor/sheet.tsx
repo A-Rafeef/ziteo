@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
+  ArrowLeft,
+  ArrowRight,
   Check,
   ChevronDown,
   ChevronUp,
@@ -7,6 +9,7 @@ import {
   Image,
   Layers,
   LayoutGrid,
+  Link2,
   PanelBottom,
   PanelTop,
   Pin,
@@ -17,9 +20,10 @@ import {
   Sparkles,
   Tag,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
-import { HERO_PHOTOS, PAGE_COLORS, TEXT_COLORS, isDark } from "@/lib/editor/defaults";
+import { HERO_PHOTOS, PAGE_COLORS, TEXT_COLORS, isDark, products } from "@/lib/editor/defaults";
 import { selectedSection, useEditor } from "@/lib/editor/store";
 import { cn } from "@/lib/cn";
 import type {
@@ -47,19 +51,23 @@ import type {
   SheetKind,
 } from "@/lib/editor/types";
 import { Field, Group, PrimaryButton, TextArea, TextInput } from "@/components/editor/ui";
+import { PageSectionsList } from "@/components/editor/page-sections-panel";
 
 const TITLES: Record<SheetKind, { title: string; subtitle: string }> = {
-  arrange: { title: "Arrange Sections", subtitle: "Drag & drop or use arrows to reorder sections. Header is fixed at top." },
-  themes: { title: "Template", subtitle: "" },
-  add: { title: "Add section", subtitle: "Place it above the footer." },
-  "page-color": { title: "Background", subtitle: "The canvas behind every section." },
-  "hero-width": { title: "Banner Width", subtitle: "Full-width or spaced margins." },
-  "hero-background": { title: "Background", subtitle: "Color behind banner (default transparent)." },
-  "hero-ratio": { title: "Aspect Ratio", subtitle: "Image height & proportions." },
-  "hero-padding": { title: "Padding", subtitle: "Vertical and side spacing." },
-  "hero-radius": { title: "Corner Curve", subtitle: "Corner rounding & curvature." },
-  "hero-animation": { title: "Animation", subtitle: "Slide transitions & autoplay." },
-  "hero-media": { title: "Banner Images", subtitle: "Manage hero slides in Dashboard." },
+  arrange: { title: "Page sections", subtitle: "Select, reorder, hide, duplicate, or insert sections." },
+  themes: { title: "Template", subtitle: "Choose store theme or reset starter template." },
+  "store-settings": { title: "Store settings", subtitle: "WhatsApp order destination and store currency." },
+  add: { title: "Add section", subtitle: "Insert a section on this page." },
+  "page-color": { title: "Page settings", subtitle: "Background behind this page." },
+  "hero-width": { title: "Spacing", subtitle: "Banner width & side spacing." },
+  "hero-background": { title: "Appearance", subtitle: "Background behind banner (default transparent)." },
+  "hero-ratio": { title: "Image shape", subtitle: "Banner proportions." },
+  "hero-padding": { title: "Spacing", subtitle: "Vertical and side spacing." },
+  "hero-radius": { title: "Corners", subtitle: "Rounded corners radius." },
+  "hero-animation": { title: "Banner · Slideshow", subtitle: "Autoplay, speed, and slide transitions." },
+  "hero-media": { title: "Banner", subtitle: "Images, links, appearance & slideshow." },
+  "hero-link": { title: "Banner · Link", subtitle: "Where each slide takes the shopper." },
+  "hero-appearance": { title: "Banner · Appearance", subtitle: "Shape, crop, spacing & corners." },
   "hero-layout": { title: "Template", subtitle: "" },
   "hero-photo": { title: "Photo", subtitle: "Replaces the current slide." },
   "hero-text": { title: "Hero text", subtitle: "The line under the photograph." },
@@ -75,8 +83,8 @@ const TITLES: Record<SheetKind, { title: string; subtitle: string }> = {
   "product-color": { title: "Product Colors", subtitle: "Background & price styling." },
   "product-typography": { title: "Typography", subtitle: "Title sizing & font weights." },
   "product-text": { title: "Product", subtitle: "" },
-  "footer-style": { title: "Template", subtitle: "" },
-  "section-color": { title: "Color", subtitle: "Background of this section." },
+  "footer-style": { title: "Footer", subtitle: "Store details, policy links, layout & appearance." },
+  "section-color": { title: "Appearance", subtitle: "Section background color." },
   "product-card-box": { title: "Card Frame", subtitle: "Borders, shadows, curves & card background." },
   "product-card-image": { title: "Image Style", subtitle: "Full-width vs inset, image curves & ratio." },
   "product-card-details": { title: "Card Content", subtitle: "Layout, alignment, badges & buttons." },
@@ -92,8 +100,23 @@ const TITLES: Record<SheetKind, { title: string; subtitle: string }> = {
   "featured-template": { title: "Template", subtitle: "" },
 };
 
+function scopedSheetTitle(kind: SheetKind, baseTitle: string, pageId: string, sec: Section | null): string {
+  const pageLabel = pageId === "home" ? "Home page" : pageId === "shop" ? "Shop page" : "Product page";
+  if (kind.startsWith("product-card-") || sec?.id === "product-card") return "Product card · All products";
+  if (kind === "store-settings") return "Store settings · All pages";
+  if (kind === "footer-style" || sec?.type === "footer") return "Footer · All pages";
+  if (kind.startsWith("hero-")) return `Banner · ${pageLabel}`;
+  if (kind === "arrange" || kind === "add" || kind === "page-color" || kind === "themes") return `${baseTitle} · ${pageLabel}`;
+  if (sec?.type === "catalog" || kind.startsWith("catalog-")) return "Shop catalog · Shop page";
+  if (sec?.type === "product" || kind.startsWith("product-")) return "Product details · Product page";
+  if (sec) return `${sec.name} · ${pageLabel}`;
+  return `${baseTitle} · ${pageLabel}`;
+}
+
 export function Sheet() {
   const sheet = useEditor((s) => s.sheet);
+  const pageId = useEditor((s) => s.pageId);
+  const section = useEditor((s) => selectedSection(s));
   const dialogRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
 
@@ -136,13 +159,25 @@ export function Sheet() {
 
   if (!sheet) return null;
   const meta = TITLES[sheet];
+  const displayTitle = scopedSheetTitle(sheet, meta.title, pageId, section);
+  const isHeroSheet = sheet.startsWith("hero-");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none">
+    <div
+      className={cn(
+        "fixed inset-0 z-50 flex pointer-events-none",
+        isHeroSheet
+          ? "items-end justify-center md:items-stretch md:justify-end md:p-4 md:pt-16 md:pb-24"
+          : "items-end justify-center",
+      )}
+    >
       <button
         type="button"
         aria-label="Close"
-        className="animate-fade-in pointer-events-auto absolute inset-0 bg-transparent transition-opacity"
+        className={cn(
+          "animate-fade-in pointer-events-auto absolute inset-0 bg-transparent transition-opacity",
+          isHeroSheet && "md:pointer-events-none",
+        )}
         onClick={() => useEditor.getState().closeSheet()}
       />
       <div
@@ -151,14 +186,19 @@ export function Sheet() {
         aria-modal="true"
         aria-labelledby="sheet-dialog-title"
         tabIndex={-1}
-        className="animate-slide-up sheet-max pointer-events-auto relative flex w-full max-w-lg flex-col overflow-hidden rounded-t-4xl border-t border-slate-200/90 bg-surface shadow-[0_-14px_45px_rgba(0,0,0,0.18)] outline-none"
+        className={cn(
+          "animate-slide-up pointer-events-auto relative flex w-full flex-col overflow-hidden border-t border-slate-200/90 bg-surface shadow-[0_-14px_45px_rgba(0,0,0,0.18)] outline-none",
+          isHeroSheet
+            ? "max-h-[50dvh] rounded-t-4xl md:max-h-full md:w-[24.5rem] md:rounded-3xl md:border md:shadow-2xl"
+            : "sheet-max max-w-lg rounded-t-4xl",
+        )}
       >
         <div className="flex justify-center pt-3">
           <div className="h-1 w-10 rounded-full bg-line" />
         </div>
         <div className="flex items-start justify-between px-5 py-3">
           <div>
-            <h2 id="sheet-dialog-title" className="text-base font-semibold tracking-tight">{meta.title}</h2>
+            <h2 id="sheet-dialog-title" className="text-base font-semibold tracking-tight">{displayTitle}</h2>
             {meta.subtitle ? <p className="text-xs text-muted">{meta.subtitle}</p> : null}
           </div>
           <button
@@ -182,9 +222,11 @@ function SheetBody({ kind }: { kind: SheetKind }) {
   const section = useEditor((s) => selectedSection(s));
   switch (kind) {
     case "arrange":
-      return <ArrangeSectionsSheet />;
+      return <PageSectionsList onSelectSection={() => useEditor.getState().closeSheet()} />;
     case "themes":
       return <Themes />;
+    case "store-settings":
+      return <StoreSettingsSheet />;
     case "add":
       return <AddList />;
     case "page-color":
@@ -201,9 +243,13 @@ function SheetBody({ kind }: { kind: SheetKind }) {
     case "hero-radius":
       return section?.type === "hero" ? <HeroRadiusSheet hero={section} /> : null;
     case "hero-animation":
-      return section?.type === "hero" ? <HeroAnimationSheet hero={section} /> : null;
+      return section?.type === "hero" ? <HeroBannerSheet hero={section} focusSection="slideshow" /> : null;
     case "hero-media":
-      return section?.type === "hero" ? <HeroMediaSheet /> : null;
+      return section?.type === "hero" ? <HeroBannerSheet hero={section} focusSection="images" /> : null;
+    case "hero-link":
+      return section?.type === "hero" ? <HeroBannerSheet hero={section} focusSection="link" /> : null;
+    case "hero-appearance":
+      return section?.type === "hero" ? <HeroBannerSheet hero={section} focusSection="appearance" /> : null;
     case "hero-layout":
       return section?.type === "hero" ? <HeroLayouts hero={section} /> : null;
     case "hero-photo":
@@ -267,16 +313,20 @@ function SheetBody({ kind }: { kind: SheetKind }) {
 
 function TemplateCard({
   active,
+  label,
   onClick,
   children,
 }: {
   active: boolean;
+  label?: string;
   onClick: () => void;
   children: ReactNode;
 }) {
   return (
     <button
       type="button"
+      aria-label={label}
+      aria-pressed={active}
       onClick={onClick}
       className={cn(
         "tap-smooth flex w-full items-center gap-3.5 rounded-2xl border p-3 text-left transition-all duration-200 active:scale-[0.99]",
@@ -621,45 +671,150 @@ function Themes() {
           <div className="mt-2 h-2 w-2/3 rounded-full bg-white/20" />
         </div>
       </TemplateCard>
+
+      <div className="mt-2 border-t border-line-soft pt-3">
+        <p className="mb-2 text-xs text-muted">
+          Reset all draft pages back to the original starter storefront.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm("Restore the original starter template? Draft changes will be reset.")) {
+              useEditor.getState().reset();
+            }
+          }}
+          className="w-full rounded-xl border border-red-200 bg-red-50/70 py-2.5 text-xs font-semibold text-red-700 hover:bg-red-100 transition-colors cursor-pointer"
+        >
+          Reset template
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function StoreSettingsSheet() {
+  const nav = useEditor((s) => s.pages[s.pageId].sections.find((sec) => sec.type === "navbar"));
+  const catalog = useEditor((s) => s.pages.shop.sections.find((sec) => sec.type === "catalog"));
+  const storedNumber =
+    nav && nav.type === "navbar" && nav.whatsappNumber != null ? nav.whatsappNumber : "";
+  const storedCurrency =
+    catalog && catalog.type === "catalog" && catalog.currency ? catalog.currency : "$";
+
+  const [phone, setPhone] = useState(storedNumber);
+  const [currency, setCurrency] = useState(storedCurrency);
+
+  useEffect(() => {
+    setPhone(storedNumber);
+  }, [storedNumber]);
+
+  useEffect(() => {
+    setCurrency(storedCurrency);
+  }, [storedCurrency]);
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Seller WhatsApp Number</p>
+        <Field label="Phone number with country code (leave empty to disable ordering)">
+          <TextInput
+            value={phone}
+            placeholder="e.g. 919876543210"
+            onChange={(e) => setPhone(e.target.value)}
+          />
+        </Field>
+        {!phone.trim() && (
+          <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            No WhatsApp destination set. Product order buttons will ask sellers to configure a number instead of using a demo number.
+          </p>
+        )}
+      </div>
+
+      <div>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Store Currency</p>
+        <div className="grid grid-cols-3 gap-2">
+          {CURRENCY_PRESETS.map((c) => (
+            <button
+              key={c.code}
+              type="button"
+              aria-pressed={currency === c.code}
+              onClick={() => setCurrency(c.code)}
+              className={cn(
+                "rounded-xl border py-2 text-xs font-semibold transition-all cursor-pointer",
+                currency === c.code
+                  ? "border-accent bg-accent/10 text-accent"
+                  : "border-line-soft bg-surface text-ink hover:bg-fill",
+              )}
+            >
+              {c.code} · {c.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <PrimaryButton
+        onClick={() => {
+          useEditor.getState().updateStoreSettings({ whatsappNumber: phone, currency });
+          useEditor.getState().closeSheet();
+        }}
+      >
+        Save Store Settings
+      </PrimaryButton>
     </div>
   );
 }
 
 function AddList() {
   const pageId = useEditor((s) => s.pageId);
+  const insertAtIndex = useEditor((s) => s.insertAtIndex);
 
   type AddItem = {
     kind: "hero" | "featured" | "categories" | "brands" | "about" | "catalog" | "product";
     title: string;
     desc: string;
-    badge?: string;
+    thumb: string;
   };
 
   const homeItems: AddItem[] = [
-    { kind: "hero", title: "Hero Banner", desc: "High-impact visual banner with photo & headline." },
-    { kind: "categories", title: "Categories", desc: "Visual navigation tiles for product categories." },
-    { kind: "featured", title: "Featured Products", desc: "Curated drops with direct WhatsApp checkout.", badge: "POPULAR" },
-    { kind: "brands", title: "Brands", desc: "Authorized partner brands and logos." },
+    { kind: "hero", title: "Hero Banner", desc: "High-impact visual banner with slides & link.", thumb: HERO_PHOTOS[0].url },
+    { kind: "categories", title: "Categories", desc: "Visual navigation tiles for product categories.", thumb: HERO_PHOTOS[1].url },
+    { kind: "featured", title: "Featured Products", desc: "Curated drops with direct WhatsApp checkout.", thumb: HERO_PHOTOS[2].url },
+    { kind: "brands", title: "Brands", desc: "Authorized partner brands and logos.", thumb: HERO_PHOTOS[3].url },
   ];
 
   const shopItems: AddItem[] = [
-    { kind: "catalog", title: "Catalog Grid", desc: "Full product catalog with category filter & search.", badge: "CORE" },
+    { kind: "catalog", title: "Catalog Grid", desc: "Full product catalog with category filter & search.", thumb: HERO_PHOTOS[0].url },
   ];
 
   const productItems: AddItem[] = [
-    { kind: "product", title: "Product Details", desc: "Main product view with gallery & WhatsApp checkout.", badge: "CORE" },
-    { kind: "featured", title: "Related Products", desc: "You May Also Like - curated recommendations." },
-    { kind: "about", title: "Trust & Guarantees", desc: "100% authentic, fast delivery & warranty guarantees." },
+    { kind: "product", title: "Product Details", desc: "Main product view with gallery & WhatsApp checkout.", thumb: HERO_PHOTOS[1].url },
+    { kind: "featured", title: "Related Products", desc: "You May Also Like - curated recommendations.", thumb: HERO_PHOTOS[2].url },
+    { kind: "about", title: "Trust & Guarantees", desc: "100% authentic, fast delivery & warranty guarantees.", thumb: HERO_PHOTOS[3].url },
   ];
 
   const items = pageId === "home" ? homeItems : pageId === "shop" ? shopItems : productItems;
   const pageLabel = pageId === "home" ? "Home Page" : pageId === "shop" ? "Shop Page" : "Product Page";
+  const existingCatalog = useEditor((s) =>
+    s.pageId === "shop" ? s.pages.shop.sections.find((sec) => sec.type === "catalog") : undefined,
+  );
 
   return (
     <div className="flex flex-col gap-2.5">
+      {existingCatalog && (
+        <button
+          type="button"
+          onClick={() => {
+            useEditor.getState().select(existingCatalog.id);
+            useEditor.getState().closeSheet();
+          }}
+          className="tap-smooth flex w-full items-center justify-between rounded-2xl border border-accent bg-accent/8 px-3.5 py-2.5 text-left text-xs font-semibold text-accent hover:bg-accent/15 cursor-pointer"
+        >
+          <span>Edit existing catalog</span>
+          <span>Select →</span>
+        </button>
+      )}
       <div className="flex items-center justify-between pb-1 px-1">
         <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-          Sections for {pageLabel}
+          {insertAtIndex !== null ? `Insert at position ${insertAtIndex} · ${pageLabel}` : `Sections for ${pageLabel}`}
         </span>
         <span className="text-[11px] font-medium text-accent">
           {items.length} available
@@ -673,18 +828,18 @@ function AddList() {
             useEditor.getState().insertSection(item.kind);
             useEditor.getState().closeSheet();
           }}
-          className="tap-smooth flex w-full items-center justify-between rounded-2xl border border-line-soft bg-surface p-3.5 text-left hover:bg-fill/70 transition-all hover:border-line group"
+          className="tap-smooth flex w-full items-center gap-3 rounded-2xl border border-line-soft bg-surface p-2.5 text-left hover:bg-fill/70 transition-all hover:border-line group cursor-pointer"
         >
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-ink group-hover:text-accent transition-colors">{item.title}</span>
-              {item.badge && (
-                <span className="rounded-md bg-purple-500/15 px-1.5 py-0.5 text-[9px] font-bold text-purple-700 uppercase">
-                  {item.badge}
-                </span>
-              )}
+          <img
+            src={item.thumb}
+            alt=""
+            className="h-12 w-16 shrink-0 rounded-xl object-cover border border-line-soft bg-fill"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-ink group-hover:text-accent transition-colors">
+              {item.title}
             </div>
-            <div className="text-xs text-muted mt-0.5">{item.desc}</div>
+            <div className="text-xs text-muted mt-0.5 line-clamp-2">{item.desc}</div>
           </div>
           <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-fill text-ink group-hover:bg-accent group-hover:text-white transition-all">
             +
@@ -745,6 +900,7 @@ function CatalogTemplate({ current }: { current?: "grid" | "list" }) {
     <div className="flex flex-col gap-3">
       <TemplateCard
         active={active === "grid"}
+        label="Grid"
         onClick={() => useEditor.getState().patchSelected({ template: "grid" })}
       >
         <div className="grid grid-cols-2 gap-2.5 rounded-xl border border-line-soft bg-fill/30 p-2.5">
@@ -762,6 +918,7 @@ function CatalogTemplate({ current }: { current?: "grid" | "list" }) {
       </TemplateCard>
       <TemplateCard
         active={active === "list"}
+        label="List"
         onClick={() => useEditor.getState().patchSelected({ template: "list" })}
       >
         <div className="flex flex-col gap-2 rounded-xl border border-line-soft bg-fill/30 p-2.5">
@@ -1265,6 +1422,7 @@ function ProductTemplate({ current }: { current?: "stacked" | "split" | "grid" }
 
       <TemplateCard
         active={active === "grid"}
+        label="Grid"
         onClick={() => useEditor.getState().patchSelected({ template: "grid" })}
       >
         <div className="flex items-center gap-3.5 w-full">
@@ -1446,6 +1604,38 @@ function ProductElementsSheet({ sec }: { sec: ProductSection }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Live Price & Stock Quick Edit */}
+      <div className="flex flex-col gap-2.5 rounded-2xl border border-line-soft bg-surface p-3.5 shadow-2xs">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-muted uppercase tracking-wider">Price & Stock</span>
+          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+            Updates live
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-2.5">
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-muted">Price ({sec.currency || "$"})</span>
+            <input
+              type="number"
+              min={0}
+              value={sec.price}
+              onChange={(e) => useEditor.getState().setProductField({ price: Math.max(0, Number(e.target.value) || 0) })}
+              className="w-full rounded-xl border border-line-soft bg-fill/40 px-3 py-1.5 text-xs text-ink outline-none focus:border-accent"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-muted">Stock count</span>
+            <input
+              type="number"
+              min={0}
+              value={sec.stock ?? 10}
+              onChange={(e) => useEditor.getState().setProductField({ stock: Math.max(0, Number(e.target.value) || 0) })}
+              className="w-full rounded-xl border border-line-soft bg-fill/40 px-3 py-1.5 text-xs text-ink outline-none focus:border-accent"
+            />
+          </label>
+        </div>
+      </div>
+
       {/* Badge Text Input */}
       {sec.showBadge !== false && (
         <div className="flex flex-col gap-2 rounded-2xl border border-line-soft bg-surface p-3.5 shadow-2xs">
@@ -2356,6 +2546,7 @@ function ProductCardDetailsSheet() {
             <button
               type="button"
               role="switch"
+              aria-label="Product Badges"
               aria-checked={showBadge}
               onClick={() => useEditor.getState().patchSelected({ showBadge: !showBadge })}
               className={cn(
@@ -2381,6 +2572,7 @@ function ProductCardDetailsSheet() {
             <button
               type="button"
               role="switch"
+              aria-label="Price Display"
               aria-checked={showPrice}
               onClick={() => useEditor.getState().patchSelected({ showPrice: !showPrice })}
               className={cn(
@@ -2406,6 +2598,7 @@ function ProductCardDetailsSheet() {
             <button
               type="button"
               role="switch"
+              aria-label="Quick WhatsApp Button"
               aria-checked={showButton}
               onClick={() => useEditor.getState().patchSelected({ showButton: !showButton })}
               className={cn(
@@ -2591,6 +2784,7 @@ function ProductCardStyle() {
         </div>
         <input
           type="range"
+          aria-label="Card corner radius"
           min="0"
           max="32"
           step="2"
@@ -2679,6 +2873,7 @@ function ProductCardBadges() {
             <button
               type="button"
               role="switch"
+              aria-label="Product Badges"
               aria-checked={showBadge}
               onClick={() => useEditor.getState().patchSelected({ showBadge: !showBadge })}
               className={cn(
@@ -2704,6 +2899,7 @@ function ProductCardBadges() {
             <button
               type="button"
               role="switch"
+              aria-label="Price Display"
               aria-checked={showPrice}
               onClick={() => useEditor.getState().patchSelected({ showPrice: !showPrice })}
               className={cn(
@@ -2729,6 +2925,7 @@ function ProductCardBadges() {
             <button
               type="button"
               role="switch"
+              aria-label="Quick WhatsApp Button"
               aria-checked={showButton}
               onClick={() => useEditor.getState().patchSelected({ showButton: !showButton })}
               className={cn(
@@ -3332,6 +3529,7 @@ function HeroAnimationSheet({ hero }: { hero: HeroSection }) {
           type="button"
           role="switch"
           aria-checked={autoplay}
+          aria-label="Autoplay Slideshow"
           onClick={() => useEditor.getState().patchSelected({ autoplay: !autoplay })}
           className={cn(
             "tap-smooth relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200",
@@ -3401,42 +3599,606 @@ function HeroAnimationSheet({ hero }: { hero: HeroSection }) {
   );
 }
 
-function HeroMediaSheet() {
-  const [confirmed, setConfirmed] = useState(false);
+const SLIDE_LINK_PRESETS = [
+  { label: "No link", value: "" },
+  { label: "Shop page", value: "shop" },
+  { label: "Product page", value: "product" },
+  { label: "Featured", value: "#featured" },
+  { label: "Categories", value: "#categories" },
+  { label: "Brands", value: "#brands" },
+];
+
+const FOCAL_PRESETS = [
+  { label: "Center", value: "50% 50%" },
+  { label: "Top", value: "50% 15%" },
+  { label: "Bottom", value: "50% 85%" },
+  { label: "Left", value: "15% 50%" },
+  { label: "Right", value: "85% 50%" },
+];
+
+async function readBannerImage(file: File): Promise<string> {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Please select an image file (JPG, PNG, WebP, or SVG).");
+  }
+  if (file.type === "image/svg+xml") {
+    if (file.size > 150_000) throw new Error("SVG must be smaller than 150KB.");
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error("Could not read image file."));
+      reader.readAsDataURL(file);
+    });
+  }
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new window.Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("Invalid or corrupted image file."));
+      el.src = objectUrl;
+    });
+    const maxDim = 1400;
+    const scale = Math.min(1, maxDim / Math.max(img.width || 1, img.height || 1));
+    const width = Math.max(1, Math.round(img.width * scale));
+    const height = Math.max(1, Math.round(img.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Image processing unavailable.");
+    ctx.drawImage(img, 0, 0, width, height);
+    return canvas.toDataURL("image/jpeg", 0.86);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+function HeroBannerSheet({
+  hero,
+  focusSection = "images",
+}: {
+  hero: HeroSection;
+  focusSection?: "images" | "link" | "appearance" | "slideshow";
+}) {
+  const activeIdx = Math.min(Math.max(0, hero.active), Math.max(0, hero.slides.length - 1));
+  const currentImg = hero.slides[activeIdx] ?? hero.slides[0] ?? "";
+  const slideLinks = hero.slideLinks ?? [];
+  const slideFocalPoints = hero.slideFocalPoints ?? [];
+  const slideFits = hero.slideFits ?? [];
+
+  const activeLink = slideLinks[activeIdx] ?? "";
+  const activeFocal = slideFocalPoints[activeIdx] ?? "50% 50%";
+  const activeFit = slideFits[activeIdx] ?? "cover";
+
+  const [pickerMode, setPickerMode] = useState<"replace" | "add" | null>(null);
+  const [urlInput, setUrlInput] = useState("");
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imagesRef = useRef<HTMLDivElement>(null);
+  const linkRef = useRef<HTMLDivElement>(null);
+  const appearanceRef = useRef<HTMLDivElement>(null);
+  const slideshowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const map = {
+      images: imagesRef.current,
+      link: linkRef.current,
+      appearance: appearanceRef.current,
+      slideshow: slideshowRef.current,
+    };
+    const target = map[focusSection];
+    if (target && focusSection !== "images") {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [focusSection]);
+
+  const galleryChoices = [
+    ...HERO_PHOTOS,
+    ...products
+      .filter((p) => p.img && !HERO_PHOTOS.some((h) => h.url === p.img))
+      .slice(0, 4)
+      .map((p) => ({ name: p.name, url: p.img })),
+  ];
+
+  // Replace only the active slide's URL while preserving link, focal point, fit, and all other slides
+  const applyChosenImage = (nextUrl: string) => {
+    if (!nextUrl.trim()) return;
+    if (pickerMode === "add") {
+      const nextSlides = [...hero.slides, nextUrl];
+      const nextLinks = [...hero.slides.map((_, i) => slideLinks[i] ?? ""), ""];
+      const nextFocals = [...hero.slides.map((_, i) => slideFocalPoints[i] ?? "50% 50%"), "50% 50%"];
+      const nextFits = [...hero.slides.map((_, i) => slideFits[i] ?? "cover"), "cover" as const];
+      useEditor.getState().patchSelected({
+        slides: nextSlides,
+        slideLinks: nextLinks,
+        slideFocalPoints: nextFocals,
+        slideFits: nextFits,
+        active: nextSlides.length - 1,
+      });
+      useEditor.getState().showToast(`Slide ${nextSlides.length} added to draft.`);
+    } else {
+      const nextSlides = [...hero.slides];
+      nextSlides[activeIdx] = nextUrl;
+      useEditor.getState().patchSelected({ slides: nextSlides });
+      useEditor.getState().showToast(`Slide ${activeIdx + 1} image updated in draft.`);
+    }
+    setPickerMode(null);
+    setUrlInput("");
+    setUploadError(null);
+  };
+
+  const handleFilePick = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return; // User cancelled dialog — keep previous image
+    setIsUploading(true);
+    setUploadError(null);
+    try {
+      const dataUrl = await readBannerImage(file);
+      applyChosenImage(dataUrl);
+    } catch (err) {
+      setUploadError(
+        err instanceof Error
+          ? `${err.message} Previous image kept.`
+          : "Upload failed. Previous image kept.",
+      );
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const moveSlide = (idx: number, delta: -1 | 1) => {
+    const target = idx + delta;
+    if (target < 0 || target >= hero.slides.length) return;
+    const swap = <T,>(arr: T[], fallback: T) => {
+      const padded = hero.slides.map((_, i) => arr[i] ?? fallback);
+      [padded[idx], padded[target]] = [padded[target], padded[idx]];
+      return padded;
+    };
+    const nextSlides = [...hero.slides];
+    [nextSlides[idx], nextSlides[target]] = [nextSlides[target], nextSlides[idx]];
+    useEditor.getState().patchSelected({
+      slides: nextSlides,
+      slideLinks: swap(slideLinks, ""),
+      slideFocalPoints: swap(slideFocalPoints, "50% 50%"),
+      slideFits: swap(slideFits, "cover" as const),
+      active: target,
+    });
+  };
+
+  const removeSlide = (idx: number) => {
+    if (hero.slides.length <= 1) return;
+    const filterIdx = <T,>(arr: T[], fallback: T) =>
+      hero.slides.map((_, i) => arr[i] ?? fallback).filter((_, i) => i !== idx);
+    const nextSlides = hero.slides.filter((_, i) => i !== idx);
+    const nextActive = Math.min(activeIdx >= idx ? Math.max(0, activeIdx - 1) : activeIdx, nextSlides.length - 1);
+    useEditor.getState().patchSelected({
+      slides: nextSlides,
+      slideLinks: filterIdx(slideLinks, ""),
+      slideFocalPoints: filterIdx(slideFocalPoints, "50% 50%"),
+      slideFits: filterIdx(slideFits, "cover" as const),
+      active: nextActive,
+    });
+  };
+
+  const updateSlideLink = (url: string) => {
+    const nextLinks = hero.slides.map((_, i) => (i === activeIdx ? url : slideLinks[i] ?? ""));
+    useEditor.getState().patchSelected({ slideLinks: nextLinks });
+  };
+
+  const updateSlideFocal = (focal: string) => {
+    const nextFocals = hero.slides.map((_, i) => (i === activeIdx ? focal : slideFocalPoints[i] ?? "50% 50%"));
+    useEditor.getState().patchSelected({ slideFocalPoints: nextFocals });
+  };
+
+  const updateSlideFit = (fit: "cover" | "contain") => {
+    const nextFits = hero.slides.map((_, i) => (i === activeIdx ? fit : slideFits[i] ?? "cover"));
+    useEditor.getState().patchSelected({ slideFits: nextFits });
+  };
 
   return (
-    <div className="flex flex-col gap-4 text-center py-2">
-      <div className="mx-auto flex size-14 items-center justify-center rounded-3xl bg-accent/10 text-accent">
-        <Image className="size-7" />
-      </div>
-
-      <div>
-        <h3 className="text-base font-bold text-ink">Manage Banner Images</h3>
-        <p className="mt-1 text-xs text-muted leading-relaxed max-w-sm mx-auto">
-          Hero banner images and slides are managed in the <strong>Dashboard</strong>. Would you like to switch to the Dashboard to update and arrange your banner media?
-        </p>
-      </div>
-
-      {confirmed ? (
-        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-          ✓ Dashboard redirection ready. You will be able to upload, crop, and reorder hero banners in the Media Dashboard.
+    <div className="flex flex-col gap-5 pb-2">
+      {/* 1. IMAGES */}
+      <div ref={imagesRef} className="flex flex-col gap-3">
+        {/* Current slide thumbnail + primary Replace image action FIRST */}
+        <div className="flex items-center gap-3 rounded-2xl border border-line-soft bg-fill/40 p-3">
+          <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border border-line-soft bg-surface">
+            {currentImg ? (
+              <img
+                src={currentImg}
+                alt={`Slide ${activeIdx + 1} preview`}
+                style={{ objectPosition: activeFocal }}
+                className={cn("size-full", activeFit === "contain" ? "object-contain" : "object-cover")}
+              />
+            ) : (
+              <div className="flex size-full items-center justify-center text-muted">
+                <Image className="size-5" />
+              </div>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-ink">
+                Slide {activeIdx + 1} of {hero.slides.length}
+              </span>
+              <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                Draft
+              </span>
+            </div>
+            <p className="mt-0.5 text-[11px] text-muted truncate">
+              {activeLink ? `Links to ${activeLink}` : "No destination link"}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setUploadError(null);
+                setPickerMode(pickerMode === "replace" ? null : "replace");
+              }}
+              className="tap-smooth mt-2 inline-flex h-8 items-center gap-1.5 rounded-full bg-ink px-3.5 text-xs font-semibold text-on-ink hover:opacity-90 cursor-pointer"
+            >
+              <Upload className="size-3.5" />
+              <span>Replace image</span>
+            </button>
+          </div>
         </div>
-      ) : (
-        <div className="flex flex-col gap-2 pt-2">
-          <button
-            type="button"
-            onClick={() => setConfirmed(true)}
-            className="w-full py-3 rounded-2xl bg-accent text-white text-sm font-semibold shadow-xs hover:bg-accent/90 transition-all active:scale-[0.99]"
-          >
-            Yes, Go to Dashboard
-          </button>
-          <button
-            type="button"
-            onClick={() => useEditor.getState().closeSheet()}
-            className="w-full py-2.5 rounded-2xl border border-line-soft bg-surface text-ink text-xs font-medium hover:bg-fill transition-all"
-          >
-            Stay in Designer
-          </button>
+
+        {/* Inline Upload / Media Picker */}
+        {pickerMode !== null && (
+          <div className="flex flex-col gap-3 rounded-2xl border border-accent/30 bg-surface p-3.5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-ink">
+                {pickerMode === "add" ? "Add New Slide Image" : `Replace Slide ${activeIdx + 1} Image`}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setPickerMode(null);
+                  setUploadError(null);
+                }}
+                className="text-xs font-medium text-muted hover:text-ink cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+
+            {uploadError && (
+              <div role="alert" className="rounded-xl border border-red-500/30 bg-red-50 px-3 py-2 text-xs text-red-700">
+                {uploadError}
+              </div>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFilePick}
+              className="hidden"
+            />
+            <button
+              type="button"
+              disabled={isUploading}
+              onClick={() => fileInputRef.current?.click()}
+              className="tap-smooth flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-fill/50 py-2.5 text-xs font-semibold text-ink hover:border-accent hover:bg-accent/5 cursor-pointer"
+            >
+              <Upload className="size-4 text-accent" />
+              <span>{isUploading ? "Processing image..." : "Upload from device"}</span>
+            </button>
+
+            <div className="flex gap-1.5">
+              <input
+                type="url"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                placeholder="Or paste https:// image URL"
+                aria-label="Paste image URL"
+                className="min-w-0 flex-1 rounded-xl border border-line-soft bg-fill/40 px-3 py-1.5 text-xs text-ink outline-none focus:border-accent"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const trimmed = urlInput.trim();
+                  if (!trimmed) {
+                    setUploadError("Please enter a valid image URL. Previous image kept.");
+                    return;
+                  }
+                  applyChosenImage(trimmed);
+                }}
+                className="rounded-xl bg-fill px-3 py-1.5 text-xs font-semibold text-ink hover:bg-line-soft cursor-pointer"
+              >
+                Apply
+              </button>
+            </div>
+
+            <div>
+              <p className="mb-1.5 text-[11px] font-medium text-muted">Store media library</p>
+              <div className="grid grid-cols-4 gap-2">
+                {galleryChoices.map((photo) => (
+                  <button
+                    key={photo.url + photo.name}
+                    type="button"
+                    onClick={() => applyChosenImage(photo.url)}
+                    className="group relative aspect-video overflow-hidden rounded-lg border border-line-soft hover:border-accent cursor-pointer"
+                    title={photo.name}
+                  >
+                    <img src={photo.url} alt={photo.name} className="size-full object-cover group-hover:scale-105 transition-transform" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Slide Strip + Add / Reorder / Remove */}
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted">Images</span>
+            <button
+              type="button"
+              onClick={() => {
+                setUploadError(null);
+                setPickerMode(pickerMode === "add" ? null : "add");
+              }}
+              className="inline-flex items-center gap-1 rounded-full bg-fill px-2.5 py-1 text-xs font-semibold text-ink hover:bg-line-soft cursor-pointer"
+            >
+              <Plus className="size-3.5" />
+              <span>Add slide</span>
+            </button>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {hero.slides.map((url, idx) => {
+              const isActive = idx === activeIdx;
+              return (
+                <div
+                  key={`${idx}-${url.slice(0, 24)}`}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-xl border p-1.5 transition-all",
+                    isActive ? "border-accent bg-accent/5" : "border-line-soft bg-surface",
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={() => useEditor.getState().setHeroSlide(idx)}
+                    aria-label={`Select slide ${idx + 1}`}
+                    aria-current={isActive ? "true" : undefined}
+                    className="flex min-w-0 flex-1 items-center gap-2.5 text-left cursor-pointer"
+                  >
+                    <img src={url} alt="" className="h-9 w-14 shrink-0 rounded-lg object-cover border border-line-soft" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-semibold text-ink">Slide {idx + 1}</div>
+                      <div className="truncate text-[10px] text-muted">
+                        {slideLinks[idx] ? `Link: ${slideLinks[idx]}` : "No link"}
+                      </div>
+                    </div>
+                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      aria-label={`Move slide ${idx + 1} earlier`}
+                      disabled={idx === 0}
+                      onClick={() => moveSlide(idx, -1)}
+                      className="flex size-7 items-center justify-center rounded-lg hover:bg-fill disabled:opacity-30 cursor-pointer"
+                    >
+                      <ArrowLeft className="size-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Move slide ${idx + 1} later`}
+                      disabled={idx === hero.slides.length - 1}
+                      onClick={() => moveSlide(idx, 1)}
+                      className="flex size-7 items-center justify-center rounded-lg hover:bg-fill disabled:opacity-30 cursor-pointer"
+                    >
+                      <ArrowRight className="size-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Remove slide ${idx + 1}`}
+                      disabled={hero.slides.length <= 1}
+                      onClick={() => removeSlide(idx)}
+                      className="flex size-7 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 disabled:opacity-30 cursor-pointer"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* 2. LINK */}
+      <div ref={linkRef} className="flex flex-col gap-2.5 border-t border-line-soft pt-4">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+            Link · Slide {activeIdx + 1}
+          </span>
+          <Link2 className="size-3.5 text-muted" />
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {SLIDE_LINK_PRESETS.map((opt) => (
+            <button
+              key={opt.label}
+              type="button"
+              aria-pressed={activeLink === opt.value}
+              onClick={() => updateSlideLink(opt.value)}
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-xs font-medium transition-all cursor-pointer",
+                activeLink === opt.value
+                  ? "border-accent bg-accent text-white"
+                  : "border-line-soft bg-surface text-ink hover:bg-fill",
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <TextInput
+          value={activeLink}
+          placeholder="Custom path or URL (e.g. shop or https://...)"
+          aria-label={`Slide ${activeIdx + 1} link destination`}
+          onChange={(e) => updateSlideLink(e.target.value)}
+        />
+      </div>
+
+      {/* 3. APPEARANCE */}
+      <div ref={appearanceRef} className="flex flex-col gap-4 border-t border-line-soft pt-4">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted">Appearance</span>
+
+        {/* Image Shape */}
+        <div>
+          <p className="mb-1.5 text-xs font-medium text-ink">Image Shape</p>
+          <div className="grid grid-cols-3 gap-1.5">
+            {RATIOS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                aria-pressed={(hero.ratio ?? "16:9") === item.id}
+                onClick={() => useEditor.getState().patchSelected({ ratio: item.id })}
+                className={cn(
+                  "rounded-xl border px-2 py-2 text-xs font-medium transition-all cursor-pointer",
+                  (hero.ratio ?? "16:9") === item.id
+                    ? "border-accent bg-accent/10 text-accent font-semibold"
+                    : "border-line-soft bg-surface text-ink hover:bg-fill",
+                )}
+              >
+                {item.title}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Crop / Focal Point */}
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-medium text-ink">Crop & Focal Point · Slide {activeIdx + 1}</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {(
+              [
+                { id: "cover", label: "Fill & crop" },
+                { id: "contain", label: "Fit whole image" },
+              ] as const
+            ).map((fitOpt) => (
+              <button
+                key={fitOpt.id}
+                type="button"
+                aria-pressed={activeFit === fitOpt.id}
+                onClick={() => updateSlideFit(fitOpt.id)}
+                className={cn(
+                  "rounded-xl border px-2.5 py-1.5 text-xs font-medium transition-all cursor-pointer",
+                  activeFit === fitOpt.id
+                    ? "border-accent bg-accent/10 text-accent font-semibold"
+                    : "border-line-soft bg-surface text-ink hover:bg-fill",
+                )}
+              >
+                {fitOpt.label}
+              </button>
+            ))}
+          </div>
+          {activeFit === "cover" && (
+            <div className="flex flex-wrap gap-1.5">
+              {FOCAL_PRESETS.map((fp) => (
+                <button
+                  key={fp.value}
+                  type="button"
+                  aria-pressed={activeFocal === fp.value}
+                  onClick={() => updateSlideFocal(fp.value)}
+                  className={cn(
+                    "rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-all cursor-pointer",
+                    activeFocal === fp.value
+                      ? "border-accent bg-accent text-white"
+                      : "border-line-soft bg-surface text-ink hover:bg-fill",
+                  )}
+                >
+                  {fp.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Spacing */}
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-medium text-ink">Spacing</p>
+          <div className="grid grid-cols-4 gap-1.5">
+            {(
+              [
+                { id: "full", label: "Full" },
+                { id: "gap-sm", label: "Tight" },
+                { id: "gap-md", label: "Medium" },
+                { id: "gap-lg", label: "Compact" },
+              ] as const
+            ).map((w) => (
+              <button
+                key={w.id}
+                type="button"
+                aria-pressed={(hero.widthMode ?? "full") === w.id}
+                onClick={() => useEditor.getState().patchSelected({ widthMode: w.id })}
+                className={cn(
+                  "rounded-xl border py-1.5 text-xs font-medium transition-all cursor-pointer",
+                  (hero.widthMode ?? "full") === w.id
+                    ? "border-accent bg-accent/10 text-accent font-semibold"
+                    : "border-line-soft bg-surface text-ink hover:bg-fill",
+                )}
+              >
+                {w.label}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-4 gap-1.5">
+            {(
+              [
+                { id: "none", label: "No pad" },
+                { id: "sm", label: "Pad S" },
+                { id: "md", label: "Pad M" },
+                { id: "lg", label: "Pad L" },
+              ] as const
+            ).map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                aria-pressed={(hero.paddingY ?? "none") === p.id}
+                onClick={() => useEditor.getState().patchSelected({ paddingY: p.id, paddingX: p.id })}
+                className={cn(
+                  "rounded-xl border py-1.5 text-xs font-medium transition-all cursor-pointer",
+                  (hero.paddingY ?? "none") === p.id
+                    ? "border-accent bg-accent/10 text-accent font-semibold"
+                    : "border-line-soft bg-surface text-ink hover:bg-fill",
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Corners */}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <label htmlFor="hero-corners-slider" className="text-xs font-medium text-ink">
+              Corners
+            </label>
+            <span className="text-xs font-mono text-accent">{hero.borderRadius ?? 0}px</span>
+          </div>
+          <input
+            id="hero-corners-slider"
+            aria-label="Corners"
+            type="range"
+            min={0}
+            max={48}
+            step={2}
+            value={hero.borderRadius ?? 0}
+            onChange={(e) => useEditor.getState().patchSelected({ borderRadius: Number(e.target.value) })}
+            className="accent-accent w-full cursor-pointer"
+          />
+        </div>
+      </div>
+
+      {/* 4. SLIDESHOW (when multiple slides) */}
+      {hero.slides.length > 1 && (
+        <div ref={slideshowRef} className="flex flex-col gap-3 border-t border-line-soft pt-4">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted">Slideshow</span>
+          <HeroAnimationSheet hero={hero} />
         </div>
       )}
     </div>
@@ -3679,6 +4441,7 @@ function CategoriesTemplate({ current }: { current?: "cards" | "pills" | "grid" 
       </TemplateCard>
       <TemplateCard
         active={active === "grid"}
+        label="Grid"
         onClick={() => useEditor.getState().patchSelected({ template: "grid" })}
       >
         <div className="grid grid-cols-2 gap-2 rounded-xl border border-line-soft bg-fill/30 p-2.5">
@@ -3758,6 +4521,7 @@ function BrandsTemplate({ current }: { current?: BrandTemplate }) {
 
       <TemplateCard
         active={active === "grid"}
+        label="Grid"
         onClick={() => useEditor.getState().patchSelected({ template: "grid" })}
       >
         <div className="flex flex-col gap-1 w-full">
@@ -4154,6 +4918,7 @@ function FeaturedTemplate({ current }: { current?: "grid" | "carousel" }) {
     <div className="flex flex-col gap-3">
       <TemplateCard
         active={active === "grid"}
+        label="Grid"
         onClick={() => useEditor.getState().patchSelected({ template: "grid" })}
       >
         <div className="grid grid-cols-2 gap-2 rounded-xl border border-line-soft bg-fill/30 p-2.5">

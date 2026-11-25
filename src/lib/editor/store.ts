@@ -31,6 +31,39 @@ import type {
 } from "@/lib/editor/types";
 
 const STORAGE_KEY = "ziteo-editor-v4";
+const PUBLISHED_STORAGE_KEY = "ziteo-published-v1";
+
+export type SaveStatus =
+  | "saving"
+  | "draft_saved"
+  | "unpublished"
+  | "publishing"
+  | "published"
+  | "save_failed";
+
+function loadPublishedSnapshot(fallback: Pages): { pages: Pages; publishedAt: number | null } {
+  if (typeof window === "undefined") {
+    return { pages: structuredClone(fallback), publishedAt: null };
+  }
+  try {
+    const raw = localStorage.getItem(PUBLISHED_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as { pages?: Pages; publishedAt?: number };
+      if (parsed?.pages?.home?.sections && parsed.pages.shop?.sections && parsed.pages.product?.sections) {
+        return { pages: parsed.pages, publishedAt: parsed.publishedAt ?? null };
+      }
+    }
+  } catch {
+    localStorage.removeItem(PUBLISHED_STORAGE_KEY);
+  }
+  const initial = structuredClone(fallback);
+  try {
+    localStorage.setItem(PUBLISHED_STORAGE_KEY, JSON.stringify({ pages: initial, publishedAt: null }));
+  } catch {
+    // Ignore storage quota errors
+  }
+  return { pages: initial, publishedAt: null };
+}
 
 export interface SavedEditor {
   pages: Pages;
@@ -44,6 +77,10 @@ interface EditorState extends SavedEditor {
   zoom: number;
   preview: boolean;
   sheet: SheetKind | null;
+  insertAtIndex: number | null;
+  openAddAt: (index: number | null) => void;
+  toggleSectionHidden: (id: string) => void;
+  duplicateSection: (id: string) => void;
   cartOpen: boolean;
   searchOpen: boolean;
   publishOpen: boolean;
@@ -51,6 +88,14 @@ interface EditorState extends SavedEditor {
   toast: string | null;
   past: Snapshot[];
   future: Snapshot[];
+  publishedPages: Pages;
+  publishedAt: number | null;
+  hasUnpublishedChanges: boolean;
+  saveStatus: SaveStatus;
+  saveError: string | null;
+  setSaveStatus: (status: SaveStatus, error?: string | null) => void;
+  retrySave: () => boolean;
+  publishDraft: () => void;
   select: (id: string) => void;
   deselect: () => void;
   setDevice: (device: Device) => void;
@@ -87,9 +132,11 @@ interface EditorState extends SavedEditor {
       | "about"
       | "catalog"
       | "product",
+    targetIndex?: number,
   ) => void;
   applyTheme: (theme: "light" | "ink") => void;
   setPageColor: (background: string) => void;
+  updateStoreSettings: (patch: { whatsappNumber?: string; currency?: string }) => void;
   setHeroSlide: (index: number) => void;
   setCatalogFilter: (filter: CatalogFilter) => void;
   catalogFilterState: CatalogFilterState;
@@ -458,6 +505,9 @@ export function isSavedEditor(value: unknown): value is SavedEditor {
 }
 
 export const useEditor = create<EditorState>((set, get) => {
+  const initialPages = createPages();
+  const initialPublished = loadPublishedSnapshot(initialPages);
+
   const commit = (
     recipe: (draft: { pages: Pages; pageId: PageId }) => void,
     extra?: Partial<EditorState>,
@@ -470,6 +520,7 @@ export const useEditor = create<EditorState>((set, get) => {
       pageId: draft.pageId,
       past: [...current.past, snapshotOf(current)].slice(-30),
       future: [],
+      hasUnpublishedChanges: JSON.stringify(draft.pages) !== JSON.stringify(current.publishedPages),
       ...extra,
     });
   };
@@ -481,7 +532,7 @@ export const useEditor = create<EditorState>((set, get) => {
   };
 
   return {
-    pages: createPages(),
+    pages: initialPages,
     pageId: "home",
     cart: freshCart(),
     selectedId: null,
@@ -489,6 +540,7 @@ export const useEditor = create<EditorState>((set, get) => {
     zoom: 100,
     preview: false,
     sheet: null,
+    insertAtIndex: null,
     cartOpen: false,
     searchOpen: false,
     publishOpen: false,
@@ -496,6 +548,11 @@ export const useEditor = create<EditorState>((set, get) => {
     toast: null,
     past: [],
     future: [],
+    publishedPages: initialPublished.pages,
+    publishedAt: initialPublished.publishedAt,
+    hasUnpublishedChanges: JSON.stringify(initialPages) !== JSON.stringify(initialPublished.pages),
+    saveStatus: JSON.stringify(initialPages) !== JSON.stringify(initialPublished.pages) ? "unpublished" : "draft_saved",
+    saveError: null,
     catalogFilterState: {
       activeSort: "featured",
       activeCategory: "All",
@@ -521,6 +578,7 @@ export const useEditor = create<EditorState>((set, get) => {
         preview: typeof force === "boolean" ? force : !get().preview,
         selectedId: null,
         sheet: null,
+    insertAtIndex: null,
       });
     },
     switchPage: (pageId) => {
@@ -529,12 +587,14 @@ export const useEditor = create<EditorState>((set, get) => {
         pageId,
         selectedId: null,
         sheet: null,
+    insertAtIndex: null,
         menuOpen: false,
         searchOpen: false,
       });
     },
-    openSheet: (sheet) => set({ sheet, cartOpen: false, searchOpen: false, publishOpen: false }),
-    closeSheet: () => set({ sheet: null }),
+    openSheet: (sheet) => set({ sheet, insertAtIndex: sheet === "add" ? get().insertAtIndex : null, cartOpen: false, searchOpen: false, publishOpen: false }),
+    openAddAt: (index) => set({ sheet: "add", insertAtIndex: index, cartOpen: false, searchOpen: false, publishOpen: false }),
+    closeSheet: () => set({ sheet: null, insertAtIndex: null }),
     setMenuOpen: (menuOpen) => set({ menuOpen }),
     openCart: () => set({ cartOpen: true, sheet: null, searchOpen: false, menuOpen: false }),
     closeCart: () => set({ cartOpen: false }),
@@ -542,6 +602,39 @@ export const useEditor = create<EditorState>((set, get) => {
     closeSearch: () => set({ searchOpen: false }),
     openPublish: () => set({ publishOpen: true, sheet: null }),
     closePublish: () => set({ publishOpen: false }),
+    setSaveStatus: (saveStatus, saveError = null) => set({ saveStatus, saveError }),
+    retrySave: () => {
+      const s = get();
+      set({ saveStatus: "saving", saveError: null });
+      try {
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ pages: s.pages, pageId: s.pageId, cart: s.cart }),
+        );
+        set({
+          saveStatus: s.hasUnpublishedChanges ? "unpublished" : "draft_saved",
+          saveError: null,
+        });
+        get().showToast("Draft saved.");
+        return true;
+      } catch {
+        set({ saveStatus: "save_failed", saveError: "Could not save draft locally." });
+        return false;
+      }
+    },
+    publishDraft: () => {
+      const current = get();
+      set({ saveStatus: "publishing", saveError: null });
+      const snapshot = structuredClone(current.pages);
+      const publishedAt = Date.now();
+      try {
+        localStorage.setItem(PUBLISHED_STORAGE_KEY, JSON.stringify({ pages: snapshot, publishedAt }));
+        set({ publishedPages: snapshot, publishedAt, hasUnpublishedChanges: false, saveStatus: "published", saveError: null });
+        get().showToast("Design published.");
+      } catch {
+        set({ saveStatus: "save_failed", saveError: "Publish failed. Draft preserved." });
+      }
+    },
 
     undo: () => {
       pendingPast = null;
@@ -553,8 +646,10 @@ export const useEditor = create<EditorState>((set, get) => {
         pageId: prev.pageId,
         past: current.past.slice(0, -1),
         future: [...current.future, snapshotOf(current)].slice(-30),
+        hasUnpublishedChanges: JSON.stringify(prev.pages) !== JSON.stringify(current.publishedPages),
         selectedId: null,
         sheet: null,
+    insertAtIndex: null,
       });
     },
     redo: () => {
@@ -567,8 +662,10 @@ export const useEditor = create<EditorState>((set, get) => {
         pageId: next.pageId,
         future: current.future.slice(0, -1),
         past: [...current.past, snapshotOf(current)].slice(-30),
+        hasUnpublishedChanges: JSON.stringify(next.pages) !== JSON.stringify(current.publishedPages),
         selectedId: null,
         sheet: null,
+    insertAtIndex: null,
       });
     },
 
@@ -695,8 +792,39 @@ export const useEditor = create<EditorState>((set, get) => {
       );
     },
 
-    insertSection: (kind) => {
+    toggleSectionHidden: (id) => {
+      const page = get().pages[get().pageId];
+      const sec = page.sections.find((item) => item.id === id);
+      if (!sec || sec.type === "navbar" || sec.type === "footer") return;
+      const nextHidden = !("hidden" in sec && sec.hidden);
+      commit(({ pages, pageId }) => {
+        pages[pageId].sections = pages[pageId].sections.map((item) =>
+          item.id === id ? ({ ...item, hidden: nextHidden } as Section) : item,
+        );
+      });
+      get().showToast(nextHidden ? `Hidden ${sec.name}.` : `Restored ${sec.name}.`);
+    },
+
+    duplicateSection: (id) => {
+      const page = get().pages[get().pageId];
+      const index = page.sections.findIndex((item) => item.id === id);
+      const sec = page.sections[index];
+      if (!sec || sec.type === "navbar" || sec.type === "footer") return;
+      const copy = structuredClone(sec);
+      copy.id = `${sec.type}-${Date.now()}`;
+      if ("hidden" in copy) copy.hidden = false;
+      commit(
+        ({ pages, pageId }) => {
+          pages[pageId].sections.splice(index + 1, 0, copy);
+        },
+        { selectedId: copy.id, sheet: null },
+      );
+      get().showToast(`Duplicated ${sec.name}.`);
+    },
+
+    insertSection: (kind, targetIndex) => {
       const pageId = get().pageId;
+      const desiredIndex = targetIndex ?? get().insertAtIndex;
       let newSec: Section;
       switch (kind) {
         case "hero":
@@ -738,10 +866,15 @@ export const useEditor = create<EditorState>((set, get) => {
         ({ pages, pageId: pId }) => {
           const sections = pages[pId].sections;
           const footerAt = sections.findIndex((sec) => sec.type === "footer");
-          if (footerAt === -1) sections.push(newSec);
-          else sections.splice(footerAt, 0, newSec);
+          const maxIndex = footerAt === -1 ? sections.length : footerAt;
+          if (desiredIndex !== null && desiredIndex !== undefined) {
+            const clamped = Math.max(1, Math.min(desiredIndex, maxIndex));
+            sections.splice(clamped, 0, newSec);
+          } else {
+            sections.splice(maxIndex, 0, newSec);
+          }
         },
-        { selectedId: newSec.id, sheet: null },
+        { selectedId: newSec.id, sheet: null, insertAtIndex: null },
       );
       get().showToast(`Added ${newSec.name} section.`);
     },
@@ -788,6 +921,31 @@ export const useEditor = create<EditorState>((set, get) => {
         pages[pageId].background = background;
         pages[pageId].tone = isDark(background) ? "dark" : "light";
       });
+    },
+
+    updateStoreSettings: (patch) => {
+      pendingPast = null;
+      commit(({ pages }) => {
+        if (typeof patch.whatsappNumber === "string") {
+          syncStoreWhatsapp(pages, patch.whatsappNumber);
+        }
+        if (typeof patch.currency === "string") {
+          (Object.keys(pages) as PageId[]).forEach((pId) => {
+            pages[pId].sections = pages[pId].sections.map((sec) => {
+              if (
+                sec.type === "catalog" ||
+                sec.type === "featured" ||
+                sec.type === "grid" ||
+                sec.type === "product"
+              ) {
+                return { ...sec, currency: patch.currency } as Section;
+              }
+              return sec;
+            });
+          });
+        }
+      });
+      get().showToast("Store settings saved to draft.");
     },
 
     setHeroSlide: (index) => {
@@ -965,6 +1123,7 @@ export const useEditor = create<EditorState>((set, get) => {
         searchOpen: false,
         selectedId: null,
         sheet: null,
+    insertAtIndex: null,
       });
     },
 
@@ -1012,6 +1171,7 @@ export const useEditor = create<EditorState>((set, get) => {
         zoom: 100,
         preview: false,
         sheet: null,
+    insertAtIndex: null,
         cartOpen: false,
         searchOpen: false,
         publishOpen: false,
@@ -1114,7 +1274,15 @@ export const useEditor = create<EditorState>((set, get) => {
         cleanPages.product.sections.splice(insertIdx, 0, ...newSections);
       }
 
-      set({ pages: cleanPages, pageId: saved.pageId, cart: saved.cart });
+      const published = loadPublishedSnapshot(cleanPages);
+      set({
+        pages: cleanPages,
+        pageId: saved.pageId,
+        cart: saved.cart,
+        publishedPages: published.pages,
+        publishedAt: published.publishedAt,
+        hasUnpublishedChanges: JSON.stringify(cleanPages) !== JSON.stringify(published.pages),
+      });
     },
   };
 });

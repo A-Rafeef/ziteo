@@ -380,7 +380,14 @@ function ColorsPanel({ sec }: { sec: NavbarSection }) {
             <button
               key={c.value}
               type="button"
-              onClick={() => patchSelected({ [target]: c.value })}
+              onClick={() => {
+                if (target === "background") {
+                  const fg = light ? "#1d1d1f" : "#ffffff";
+                  patchSelected({ background: c.value, text: fg, linkColor: fg, iconColor: fg });
+                } else {
+                  patchSelected({ [target]: c.value });
+                }
+              }}
               className="tap-smooth flex flex-col items-center gap-1 rounded-xl border border-line-soft p-1.5 hover:bg-fill/70"
             >
               <span
@@ -1102,22 +1109,8 @@ export function HeaderEditor({ section }: { section: NavbarSection }) {
 
   const rootOptions: ContextualDockOption[] = [
     {
-      id: "templates",
-      label: "Templates",
-      icon: LayoutTemplate,
-      active: category === "templates",
-      onClick: () => selectCategory("templates"),
-    },
-    {
-      id: "style",
-      label: "Colors & Style",
-      icon: Palette,
-      active: category === "style",
-      onClick: () => selectCategory("style"),
-    },
-    {
       id: "elements",
-      label: "Elements",
+      label: "Brand & Links",
       icon: SlidersHorizontal,
       active: category === "elements",
       onClick: () => selectCategory("elements"),
@@ -1129,33 +1122,47 @@ export function HeaderEditor({ section }: { section: NavbarSection }) {
       active: category === "layout",
       onClick: () => selectCategory("layout"),
     },
+    {
+      id: "templates",
+      label: "Presets",
+      icon: LayoutTemplate,
+      active: category === "templates",
+      onClick: () => selectCategory("templates"),
+    },
+    {
+      id: "style",
+      label: "Appearance",
+      icon: Palette,
+      active: category === "style",
+      onClick: () => selectCategory("style"),
+    },
   ];
 
   const subOptionsByCategory: Record<Exclude<CategoryId, "templates">, ContextualDockOption[]> = {
-    style: [
-      { id: "colors", label: "Colors", icon: Palette, active: subOption === "colors", onClick: () => selectSub("colors") },
-      { id: "fonts", label: "Fonts", icon: Type, active: subOption === "fonts", onClick: () => selectSub("fonts") },
-      { id: "effects", label: "Effects", icon: Layers, active: subOption === "effects", onClick: () => selectSub("effects") },
-    ],
     elements: [
       { id: "logo", label: "Logo", icon: ImageIcon, active: subOption === "logo", onClick: () => selectSub("logo") },
-      { id: "name", label: "Name", icon: Type, active: subOption === "name", onClick: () => selectSub("name") },
-      { id: "links", label: "Links", icon: Compass, active: subOption === "links", onClick: () => selectSub("links") },
-      { id: "buttons", label: "Buttons", icon: MessageCircle, active: subOption === "buttons", onClick: () => selectSub("buttons") },
+      { id: "name", label: "Store name", icon: Type, active: subOption === "name", onClick: () => selectSub("name") },
+      { id: "links", label: "Menu links", icon: Compass, active: subOption === "links", onClick: () => selectSub("links") },
+      { id: "buttons", label: "Actions", icon: MessageCircle, active: subOption === "buttons", onClick: () => selectSub("buttons") },
     ],
     layout: [
-      { id: "width", label: "Width", icon: MoveHorizontal, active: subOption === "width", onClick: () => selectSub("width") },
+      { id: "width", label: "Spacing", icon: MoveHorizontal, active: subOption === "width", onClick: () => selectSub("width") },
       { id: "height", label: "Height", icon: Maximize2, active: subOption === "height", onClick: () => selectSub("height") },
       { id: "corners", label: "Corners", icon: Square, active: subOption === "corners", onClick: () => selectSub("corners") },
+    ],
+    style: [
+      { id: "colors", label: "Colors", icon: Palette, active: subOption === "colors", onClick: () => selectSub("colors") },
+      { id: "fonts", label: "Typography", icon: Type, active: subOption === "fonts", onClick: () => selectSub("fonts") },
       { id: "sticky", label: "Sticky", icon: Pin, active: subOption === "sticky", onClick: () => selectSub("sticky") },
+      { id: "effects", label: "Blur & Shadow", icon: Layers, active: subOption === "effects", onClick: () => selectSub("effects") },
     ],
   };
 
   const backLabel =
     category === "style"
-      ? "Style"
+      ? "Appearance"
       : category === "elements"
-        ? "Elements"
+        ? "Brand & Links"
         : category === "layout"
           ? "Layout"
           : undefined;
@@ -1167,18 +1174,18 @@ export function HeaderEditor({ section }: { section: NavbarSection }) {
     SubOptionId,
     { title: string; expandable?: boolean; render: () => React.ReactNode }
   > = {
-    templates: { title: "Header Templates", expandable: true, render: () => <TemplatesPanel sec={section} /> },
-    colors: { title: "Colors & Opacity", expandable: true, render: () => <ColorsPanel sec={section} /> },
-    fonts: { title: "Fonts & Spacing", render: () => <FontsPanel sec={section} /> },
-    effects: { title: "Borders, Shadow & Blur", expandable: true, render: () => <EffectsPanel sec={section} /> },
-    logo: { title: "Brand Logo", expandable: true, render: () => <LogoPanel sec={section} /> },
-    name: { title: "Store Name", render: () => <StoreNamePanel sec={section} /> },
-    links: { title: "Navigation Links", expandable: true, render: () => <LinksPanel sec={section} /> },
-    buttons: { title: "Header Buttons", render: () => <ButtonsPanel sec={section} /> },
-    width: { title: "Header Width", render: () => <LayoutWidthPanel sec={section} /> },
-    height: { title: "Header Height", render: () => <LayoutHeightPanel sec={section} /> },
-    corners: { title: "Corner Radius", render: () => <LayoutCornersPanel sec={section} /> },
-    sticky: { title: "Sticky Behavior", render: () => <LayoutStickyPanel sec={section} /> },
+    templates: { title: "Header · All pages — Presets", expandable: true, render: () => <TemplatesPanel sec={section} /> },
+    colors: { title: "Header · All pages — Colors", expandable: true, render: () => <ColorsPanel sec={section} /> },
+    fonts: { title: "Header · All pages — Typography", render: () => <FontsPanel sec={section} /> },
+    effects: { title: "Header · All pages — Blur & Shadow", expandable: true, render: () => <EffectsPanel sec={section} /> },
+    logo: { title: "Header · All pages — Logo", expandable: true, render: () => <LogoPanel sec={section} /> },
+    name: { title: "Header · All pages — Store name", render: () => <StoreNamePanel sec={section} /> },
+    links: { title: "Header · All pages — Menu links", expandable: true, render: () => <LinksPanel sec={section} /> },
+    buttons: { title: "Header · All pages — Action buttons", render: () => <ButtonsPanel sec={section} /> },
+    width: { title: "Header · All pages — Spacing", render: () => <LayoutWidthPanel sec={section} /> },
+    height: { title: "Header · All pages — Height", render: () => <LayoutHeightPanel sec={section} /> },
+    corners: { title: "Header · All pages — Corners", render: () => <LayoutCornersPanel sec={section} /> },
+    sticky: { title: "Header · All pages — Sticky behavior", render: () => <LayoutStickyPanel sec={section} /> },
   };
 
   const activeMeta = subOption ? panelMeta[subOption] : null;

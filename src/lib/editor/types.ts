@@ -128,10 +128,14 @@ export interface HeroSection {
   id: string;
   type: "hero";
   name: string;
+  hidden?: boolean;
   template: HeroTemplate;
   ratio?: HeroRatio;
   background: string;
   slides: string[];
+  slideLinks?: string[];
+  slideFocalPoints?: string[];
+  slideFits?: ("cover" | "contain")[];
   active: number;
   kicker: string;
   title: string;
@@ -149,6 +153,7 @@ export interface GridSection {
   id: string;
   type: "grid";
   name: string;
+  hidden?: boolean;
   template: GridTemplate;
   background: string;
   items: GridItem[];
@@ -182,6 +187,7 @@ export interface FeaturedSection {
   id: string;
   type: "featured";
   name: string;
+  hidden?: boolean;
   title: string;
   subtitle: string;
   background: string;
@@ -224,6 +230,7 @@ export interface CategoriesSection {
   id: string;
   type: "categories";
   name: string;
+  hidden?: boolean;
   title: string;
   subtitle?: string;
   background: string;
@@ -249,6 +256,7 @@ export interface BrandsSection {
   id: string;
   type: "brands";
   name: string;
+  hidden?: boolean;
   title: string;
   subtitle?: string;
   trustBadge?: string;
@@ -273,6 +281,7 @@ export interface AboutSection {
   id: string;
   type: "about";
   name: string;
+  hidden?: boolean;
   kicker: string;
   title: string;
   story: string;
@@ -320,6 +329,7 @@ export interface CatalogSection {
   id: string;
   type: "catalog";
   name: string;
+  hidden?: boolean;
   title: string;
   subtitle: string;
   filter: CatalogFilter;
@@ -359,6 +369,7 @@ export interface ProductSection {
   id: string;
   type: "product";
   name: string;
+  hidden?: boolean;
   productName: string;
   price: number;
   rating: string;
@@ -445,6 +456,7 @@ export interface FilterSortSection {
   id: string;
   type: "filter-sort";
   name: string;
+  hidden?: boolean;
   background: string;
   sortConfig?: CatalogSortConfig;
   filterConfig?: CatalogFilterConfig;
@@ -487,6 +499,7 @@ export type Pages = Record<PageId, PageModel>;
 export type SheetKind =
   | "arrange"
   | "themes"
+  | "store-settings"
   | "add"
   | "page-color"
   | "hero-layout"
@@ -497,6 +510,8 @@ export type SheetKind =
   | "hero-radius"
   | "hero-animation"
   | "hero-media"
+  | "hero-link"
+  | "hero-appearance"
   | "hero-photo"
   | "hero-text"
   | "grid-layout"

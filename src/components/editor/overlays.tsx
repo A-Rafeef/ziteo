@@ -220,9 +220,18 @@ function SearchModal() {
 
 function PublishModal() {
   const open = useEditor((s) => s.publishOpen);
+  const hasUnpublishedChanges = useEditor((s) => s.hasUnpublishedChanges);
+  const publishedAt = useEditor((s) => s.publishedAt);
+  const saveStatus = useEditor((s) => s.saveStatus);
+  const saveError = useEditor((s) => s.saveError);
   const [copied, setCopied] = useState(false);
   if (!open) return null;
-  const link = typeof window !== "undefined" ? window.location.href : "";
+
+  // Only expose an external public store URL if actually configured; never show a fake live URL
+  const publicUrl =
+    (typeof import.meta !== "undefined" &&
+      (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_PUBLIC_STORE_URL) ||
+    "";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
@@ -232,40 +241,124 @@ function PublishModal() {
         className="animate-fade-in absolute inset-0 bg-ink/30 backdrop-blur-xs transition-opacity"
         onClick={() => useEditor.getState().closePublish()}
       />
-      <div className="animate-scale-in relative w-full max-w-sm rounded-3xl bg-surface px-6 py-7 text-center shadow-frame">
-        <h2 className="text-xl font-semibold tracking-tight">Share preview link</h2>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="publish-dialog-title"
+        className="animate-scale-in relative w-full max-w-sm rounded-3xl bg-surface px-6 py-7 text-center shadow-frame"
+      >
+        <div className="mb-3 flex justify-center">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold",
+              saveStatus === "save_failed"
+                ? "bg-red-500/15 text-red-700"
+                : hasUnpublishedChanges
+                  ? "bg-amber-500/15 text-amber-700"
+                  : "bg-emerald-500/15 text-emerald-700",
+            )}
+          >
+            <span
+              className={cn(
+                "size-1.5 rounded-full",
+                saveStatus === "save_failed"
+                  ? "bg-red-500"
+                  : hasUnpublishedChanges
+                    ? "bg-amber-500"
+                    : "bg-emerald-500",
+              )}
+            />
+            {saveStatus === "save_failed"
+              ? "Save failed"
+              : saveStatus === "publishing"
+                ? "Publishing..."
+                : hasUnpublishedChanges
+                  ? "Unpublished changes"
+                  : publishedAt
+                    ? "Published"
+                    : "Draft saved"}
+          </span>
+        </div>
+        <h2 id="publish-dialog-title" className="text-xl font-semibold tracking-tight">
+          {saveStatus === "save_failed"
+            ? "Publish could not finish"
+            : hasUnpublishedChanges
+              ? "Publish draft changes?"
+              : "Store design is up to date"}
+        </h2>
         <p className="mt-2 text-sm leading-relaxed text-muted">
-          Share this editor URL or preview the draft below. Export static HTML from the menu for an offline snapshot.
+          {saveError
+            ? `${saveError} Your draft changes are preserved.`
+            : hasUnpublishedChanges
+              ? "Design edits stay in draft until you publish. Price and stock edits update live."
+              : publicUrl
+                ? "Your published storefront is updated."
+                : "Remote public hosting is not connected in this repository. Publishing updates your local published snapshot."}
         </p>
-        <div className="mt-5 flex items-center justify-between gap-2 rounded-2xl bg-fill px-3 py-2">
-          <span className="truncate text-left text-sm text-muted">{link}</span>
+        {saveStatus === "save_failed" && (
           <button
             type="button"
-            onClick={() => {
-              navigator.clipboard?.writeText(link).catch(() => undefined);
-              setCopied(true);
-              useEditor.getState().showToast("Link copied.");
-            }}
-            className="tap-smooth inline-flex h-9 shrink-0 items-center gap-1 rounded-full bg-surface px-3 text-xs font-medium shadow-xs hover:bg-line-soft transition-all"
+            onClick={() => useEditor.getState().publishDraft()}
+            className="tap-smooth-sm mt-4 h-11 w-full rounded-full bg-red-600 text-sm font-semibold text-white hover:opacity-95 cursor-pointer"
           >
-            <Copy className="size-3.5" />
-            {copied ? "Copied" : "Copy"}
+            Retry publish
           </button>
-        </div>
+        )}
+        {hasUnpublishedChanges && saveStatus !== "save_failed" && (
+          <button
+            type="button"
+            onClick={() => useEditor.getState().publishDraft()}
+            className="tap-smooth-sm mt-4 h-11 w-full rounded-full bg-accent text-sm font-semibold text-white hover:opacity-95 transition-opacity cursor-pointer"
+          >
+            Publish changes
+          </button>
+        )}
+        {publicUrl ? (
+          <div className="mt-4 flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2 rounded-2xl bg-fill px-3 py-2">
+              <span className="truncate text-left text-sm text-muted">{publicUrl}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard?.writeText(publicUrl).catch(() => undefined);
+                  setCopied(true);
+                  useEditor.getState().showToast("Live URL copied.");
+                }}
+                className="tap-smooth inline-flex h-9 shrink-0 items-center gap-1 rounded-full bg-surface px-3 text-xs font-medium shadow-xs hover:bg-line-soft cursor-pointer"
+              >
+                <Copy className="size-3.5" />
+                {copied ? "Copied" : "Copy"}
+              </button>
+            </div>
+            <a
+              href={publicUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="tap-smooth-sm flex h-11 w-full items-center justify-center rounded-full border border-line-soft bg-surface text-sm font-medium text-ink hover:bg-fill transition-colors"
+            >
+              Open live store
+            </a>
+          </div>
+        ) : (
+          <div className="mt-4 rounded-2xl border border-line-soft bg-fill/40 px-3.5 py-2.5 text-left text-xs text-muted">
+            <span className="font-semibold text-ink block mb-0.5">Open live store unavailable</span>
+            No public tenant host is configured (`VITE_PUBLIC_STORE_URL` unset). Use <strong>Preview draft</strong> below or <strong>Download static page</strong>.
+          </div>
+        )}
         <button
           type="button"
           onClick={() => {
             useEditor.getState().closePublish();
             useEditor.getState().togglePreview(true);
           }}
-          className="tap-smooth-sm mt-4 h-11 w-full rounded-full bg-ink text-sm font-medium text-on-ink hover:opacity-90 transition-opacity"
+          className="tap-smooth-sm mt-3 h-11 w-full rounded-full bg-ink text-sm font-medium text-on-ink hover:opacity-90 transition-opacity cursor-pointer"
         >
-          Preview site
+          Preview draft
         </button>
         <button
           type="button"
           onClick={() => useEditor.getState().closePublish()}
-          className="tap-smooth-sm mt-2 h-11 w-full text-sm text-muted hover:text-ink transition-colors"
+          className="tap-smooth-sm mt-2 h-11 w-full text-sm text-muted hover:text-ink transition-colors cursor-pointer"
         >
           Back to editor
         </button>

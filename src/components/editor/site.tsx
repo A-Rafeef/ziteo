@@ -234,8 +234,36 @@ function SectionShell({
   children: ReactNode;
 }) {
   const preview = useEditor((s) => s.preview);
+  const isHidden = "hidden" in section && Boolean(section.hidden);
   const isCardSec = section.type === "catalog" || section.type === "featured" || section.type === "grid";
   const selected = useEditor((s) => !s.preview && (s.selectedId === section.id || (s.selectedId === "product-card" && isCardSec)));
+
+  if (preview && isHidden) return null;
+
+  if (isHidden) {
+    return (
+      <section
+        data-section-id={section.id}
+        data-hidden-section="true"
+        className={cn(
+          "relative mx-3 my-2 flex items-center justify-between rounded-2xl border border-dashed border-line bg-fill/50 px-4 py-3 text-xs text-muted",
+          selected && "ring-2 ring-accent",
+        )}
+      >
+        <span>Hidden section · {section.name}</span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            useEditor.getState().toggleSectionHidden(section.id);
+          }}
+          className="rounded-lg bg-surface px-2.5 py-1 text-xs font-semibold text-ink shadow-2xs hover:bg-line-soft cursor-pointer"
+        >
+          Show
+        </button>
+      </section>
+    );
+  }
 
   return (
     <section
@@ -395,7 +423,7 @@ function HeaderWhatsAppButton({
   roomy?: boolean;
 }) {
   const preview = useEditor((s) => s.preview);
-  const digits = (phone || "919876543210").replace(/[^0-9]/g, "") || "919876543210";
+  const digits = (phone ?? "").replace(/[^0-9]/g, "");
   const label = storeName?.trim() || "Ziteo";
   return (
     <button
@@ -406,6 +434,10 @@ function HeaderWhatsAppButton({
       onClick={(event) => {
         if (!preview) return;
         event.stopPropagation();
+        if (!digits) {
+          useEditor.getState().showToast("Set up seller WhatsApp number in Store settings.");
+          return;
+        }
         const message = `Hi! I have a question about ${label}.`;
         window.open(`https://wa.me/${digits}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
       }}
@@ -775,20 +807,55 @@ function HeroView({
   device: Device;
 }) {
   const isMobile = device === "mobile";
+  const preview = useEditor((s) => s.preview);
+  const selectedId = useEditor((s) => s.selectedId);
+  const sheet = useEditor((s) => s.sheet);
   const image = sec.slides[sec.active] ?? sec.slides[0];
   const ratio = sec.ratio ?? "16:9";
   const aspect = ratio === "auto" ? undefined : ratio.replace(":", " / ");
+  const activeLink = sec.slideLinks?.[sec.active] ?? "";
+  const activeFocal = sec.slideFocalPoints?.[sec.active] ?? "50% 50%";
+  const activeFit = sec.slideFits?.[sec.active] ?? "cover";
 
   const autoplay = sec.autoplay !== false;
   const speed = sec.autoplaySpeed ?? 4500;
+  // Pause autoplay while seller is inspecting/editing this banner so slide doesn't jump away
+  const isEditingBanner = !preview && (selectedId === sec.id || Boolean(sheet?.startsWith("hero-")));
 
   useEffect(() => {
-    if (!autoplay || sec.slides.length <= 1) return;
+    if (!autoplay || sec.slides.length <= 1 || isEditingBanner) return;
     const timer = setInterval(() => {
       useEditor.getState().setHeroSlide((sec.active + 1) % sec.slides.length);
     }, speed);
     return () => clearInterval(timer);
-  }, [autoplay, sec.active, sec.slides.length, speed]);
+  }, [autoplay, sec.active, sec.slides.length, speed, isEditingBanner]);
+
+  const handleSlideClick = (e: React.MouseEvent) => {
+    if (!preview || !activeLink) return;
+    e.stopPropagation();
+    const store = useEditor.getState();
+    if (activeLink === "home" || activeLink === "shop" || activeLink === "product") {
+      store.switchPage(activeLink);
+      return;
+    }
+    if (activeLink.startsWith("#")) {
+      const targetId = activeLink.slice(1);
+      const scrollIfFound = () => {
+        const el = document.querySelector(`[data-section-id="${targetId}"], [data-section-id^="${targetId}-"]`);
+        el?.scrollIntoView({ behavior: "smooth", block: "start" });
+      };
+      if (document.querySelector(`[data-section-id="${targetId}"], [data-section-id^="${targetId}-"]`)) {
+        scrollIfFound();
+      } else {
+        store.switchPage("home");
+        setTimeout(scrollIfFound, 60);
+      }
+      return;
+    }
+    if (/^https?:\/\//i.test(activeLink)) {
+      window.open(activeLink, "_blank", "noopener,noreferrer");
+    }
+  };
 
   const prev = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -859,7 +926,14 @@ function HeroView({
               key={image + sec.active}
               src={image}
               alt=""
-              className={cn("h-full w-full object-cover", animClass)}
+              onClick={handleSlideClick}
+              style={{ objectPosition: activeFocal }}
+              className={cn(
+                "h-full w-full",
+                activeFit === "contain" ? "object-contain" : "object-cover",
+                preview && activeLink && "cursor-pointer",
+                animClass,
+              )}
             />
           )}
 
@@ -960,7 +1034,11 @@ function GridView({
     event.stopPropagation();
     const origin = typeof window !== "undefined" ? window.location.origin : "https://ziteo.site";
     const productUrl = `${origin}/product?name=${encodeURIComponent(item.title)}`;
-    const phone = (sec.whatsappNumber || "919876543210").replace(/[^0-9]/g, "");
+    const phone = (sec.whatsappNumber ?? "").replace(/[^0-9]/g, "");
+    if (!phone) {
+      useEditor.getState().showToast("Set up seller WhatsApp number in Store settings.");
+      return;
+    }
     const message =
       `Hi! I'd like to order from Ziteo:\n\n` +
       `📦 *Product:* ${item.title}\n` +
@@ -1464,11 +1542,16 @@ function CatalogSortDrawer({
         className="animate-fade-in pointer-events-auto absolute inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
         onClick={onClose}
       />
-      <div className="animate-slide-up pointer-events-auto relative flex w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border-t border-line-soft bg-surface shadow-2xl">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Sort By"
+        className="animate-slide-up pointer-events-auto relative flex w-full max-w-lg max-h-[85%] flex-col overflow-hidden rounded-t-3xl border-t border-line-soft bg-surface shadow-2xl"
+      >
         <div className="flex justify-center pt-3">
           <div className="h-1.5 w-10 rounded-full bg-line" />
         </div>
-        <div className="flex items-center justify-between px-5 py-3 border-b border-line-soft">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-line-soft shrink-0">
           <div>
             <h3 className="text-base font-bold text-ink">Sort By</h3>
             <p className="text-xs text-muted">Choose how products are ordered</p>
@@ -1482,7 +1565,7 @@ function CatalogSortDrawer({
             <X className="size-4" />
           </button>
         </div>
-        <div className="p-4 space-y-2 max-h-[70vh] overflow-y-auto">
+        <div className="p-4 space-y-2 overflow-y-auto flex-1 min-h-0">
           {visibleOptions.map((opt) => {
             const isSelected = activeSort === opt.id;
             return (
@@ -1568,7 +1651,12 @@ function CatalogFilterDrawer({
         className="animate-fade-in pointer-events-auto absolute inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
         onClick={onClose}
       />
-      <div className="animate-slide-up pointer-events-auto relative flex w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border-t border-line-soft bg-surface shadow-2xl max-h-[85vh]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Filters"
+        className="animate-slide-up pointer-events-auto relative flex w-full max-w-lg max-h-[85%] flex-col overflow-hidden rounded-t-3xl border-t border-line-soft bg-surface shadow-2xl"
+      >
         <div className="flex justify-center pt-3">
           <div className="h-1.5 w-10 rounded-full bg-line" />
         </div>
@@ -2115,7 +2203,11 @@ function CatalogView({
     event.stopPropagation();
     const origin = typeof window !== "undefined" ? window.location.origin : "https://ziteo.site";
     const productUrl = `${origin}/product?name=${encodeURIComponent(item.name)}`;
-    const phone = (sec.whatsappNumber || "919876543210").replace(/[^0-9]/g, "");
+    const phone = (sec.whatsappNumber ?? "").replace(/[^0-9]/g, "");
+    if (!phone) {
+      useEditor.getState().showToast("Set up seller WhatsApp number in Store settings.");
+      return;
+    }
     const message =
       `Hi! I'd like to order from Ziteo:\n\n` +
       `📦 *Product:* ${item.name}\n` +
@@ -2308,7 +2400,11 @@ function ProductView({
     event.stopPropagation();
     const origin = typeof window !== "undefined" ? window.location.origin : "https://ziteo.site";
     const productUrl = `${origin}/product?name=${encodeURIComponent(sec.productName)}`;
-    const phone = (sec.whatsappNumber || "919876543210").replace(/[^0-9]/g, "");
+    const phone = (sec.whatsappNumber ?? "").replace(/[^0-9]/g, "");
+    if (!phone) {
+      useEditor.getState().showToast("Set up seller WhatsApp number in Store settings.");
+      return;
+    }
 
     let specsText = "";
     if (sec.brand) specsText += `🏷️ *Brand:* ${sec.brand}\n`;
@@ -2977,7 +3073,11 @@ function FeaturedView({
     event.stopPropagation();
     const origin = typeof window !== "undefined" ? window.location.origin : "https://ziteo.site";
     const productUrl = `${origin}/product?name=${encodeURIComponent(item.title)}`;
-    const phone = (sec.whatsappNumber || "919876543210").replace(/[^0-9]/g, "");
+    const phone = (sec.whatsappNumber ?? "").replace(/[^0-9]/g, "");
+    if (!phone) {
+      useEditor.getState().showToast("Set up seller WhatsApp number in Store settings.");
+      return;
+    }
     const message =
       `Hi! I'd like to order from Ziteo:\n\n` +
       `📦 *Product:* ${item.title}\n` +
@@ -3588,7 +3688,7 @@ function ProductCardStudio() {
     showStockStatus: (section && "showStockStatus" in section && section.showStockStatus !== undefined) ? section.showStockStatus : true,
     priceColor: (section && "priceColor" in section && section.priceColor) || "#059669",
     buttonColor: (section && "buttonColor" in section && section.buttonColor) || "#25D366",
-    whatsappNumber: (section && "whatsappNumber" in section && section.whatsappNumber) || "919876543210",
+    whatsappNumber: section && "whatsappNumber" in section && section.whatsappNumber != null ? section.whatsappNumber : "",
     currency: (section && "currency" in section && section.currency) || "$",
   };
 

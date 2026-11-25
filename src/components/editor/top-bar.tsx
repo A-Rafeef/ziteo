@@ -15,9 +15,9 @@ import {
   PanelTop,
   Plus,
   Redo2,
-  RotateCcw,
   Share2,
   ShoppingBag,
+  SlidersHorizontal,
   Smartphone,
   Tablet,
   Undo2,
@@ -32,6 +32,38 @@ const DEVICES: { id: Device; label: string; icon: typeof Smartphone }[] = [
   { id: "tablet", label: "Tablet", icon: Tablet },
   { id: "desktop", label: "Desktop", icon: Monitor },
 ];
+
+function ZoomInline() {
+  const zoom = useEditor((s) => s.zoom);
+  return (
+    <div className="hidden lg:flex items-center border-l border-line pl-1.5 ml-1">
+      <button
+        type="button"
+        aria-label="Zoom out"
+        onClick={() => useEditor.getState().nudgeZoom(-10)}
+        className="tap-smooth inline-flex size-8 items-center justify-center rounded-full text-ink hover:bg-surface/60 transition-colors cursor-pointer"
+      >
+        <Minus className="size-3.5" strokeWidth={1.75} />
+      </button>
+      <button
+        type="button"
+        onDoubleClick={() => useEditor.getState().resetZoom()}
+        className="tap-smooth w-11 text-center text-xs font-medium tabular-nums hover:text-accent transition-colors cursor-pointer"
+        title="Double-click to reset zoom"
+      >
+        {zoom}%
+      </button>
+      <button
+        type="button"
+        aria-label="Zoom in"
+        onClick={() => useEditor.getState().nudgeZoom(10)}
+        className="tap-smooth inline-flex size-8 items-center justify-center rounded-full text-ink hover:bg-surface/60 transition-colors cursor-pointer"
+      >
+        <Plus className="size-3.5" strokeWidth={1.75} />
+      </button>
+    </div>
+  );
+}
 
 export function DeviceSwitch({ className }: { className?: string }) {
   const device = useEditor((s) => s.device);
@@ -48,7 +80,7 @@ export function DeviceSwitch({ className }: { className?: string }) {
             title={item.label}
             onClick={() => useEditor.getState().setDevice(item.id)}
             className={cn(
-              "tap-smooth inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-all duration-200",
+              "tap-smooth inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-all duration-200 cursor-pointer",
               active ? "bg-surface text-ink shadow-float scale-[1.02]" : "text-muted hover:text-ink",
             )}
           >
@@ -57,38 +89,7 @@ export function DeviceSwitch({ className }: { className?: string }) {
           </button>
         );
       })}
-    </div>
-  );
-}
-
-function ZoomControl() {
-  const zoom = useEditor((s) => s.zoom);
-  return (
-    <div className="flex items-center rounded-full bg-fill p-1">
-      <button
-        type="button"
-        aria-label="Zoom out"
-        onClick={() => useEditor.getState().nudgeZoom(-10)}
-        className="tap-smooth inline-flex size-9 items-center justify-center rounded-full text-ink hover:bg-surface/60 transition-colors"
-      >
-        <Minus className="size-4" strokeWidth={1.75} />
-      </button>
-      <button
-        type="button"
-        onDoubleClick={() => useEditor.getState().resetZoom()}
-        className="tap-smooth w-12 text-center text-xs font-medium tabular-nums hover:text-accent transition-colors"
-        title="Double-click to reset"
-      >
-        {zoom}%
-      </button>
-      <button
-        type="button"
-        aria-label="Zoom in"
-        onClick={() => useEditor.getState().nudgeZoom(10)}
-        className="tap-smooth inline-flex size-9 items-center justify-center rounded-full text-ink hover:bg-surface/60 transition-colors"
-      >
-        <Plus className="size-4" strokeWidth={1.75} />
-      </button>
+      <ZoomInline />
     </div>
   );
 }
@@ -98,6 +99,7 @@ export function TopBar() {
   const pages = useEditor((s) => s.pages);
   const device = useEditor((s) => s.device);
   const preview = useEditor((s) => s.preview);
+  const saveStatus = useEditor((s) => s.saveStatus);
   const canUndo = useEditor((s) => s.past.length > 0);
   const canRedo = useEditor((s) => s.future.length > 0);
   const selectedId = useEditor((s) => s.selectedId);
@@ -289,31 +291,67 @@ export function TopBar() {
         <div className="hidden shrink-0 md:block">
           <DeviceSwitch />
         </div>
-        <div className="hidden shrink-0 lg:block">
-          <ZoomControl />
-        </div>
       </div>
 
-      {/* Right: Preview + Publish + More Options */}
+      {/* Right: Design Save Status + Preview (desktop, or Done when previewing) + Publish + More Options */}
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        {!preview && (
+          <div
+            role="status"
+            aria-live="polite"
+            className={cn(
+              "hidden lg:inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold",
+              saveStatus === "save_failed"
+                ? "bg-red-50 text-red-700"
+                : saveStatus === "unpublished"
+                  ? "bg-amber-50 text-amber-700"
+                  : saveStatus === "published"
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-slate-100 text-slate-600",
+            )}
+          >
+            <span>
+              {saveStatus === "saving"
+                ? "Saving..."
+                : saveStatus === "publishing"
+                  ? "Publishing..."
+                  : saveStatus === "save_failed"
+                    ? "Save failed"
+                    : saveStatus === "unpublished"
+                      ? "Unpublished changes"
+                      : saveStatus === "published"
+                        ? "Published"
+                        : "Draft saved"}
+            </span>
+            {saveStatus === "save_failed" && (
+              <button
+                type="button"
+                onClick={() => useEditor.getState().retrySave()}
+                className="underline font-bold hover:text-red-900 cursor-pointer"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        )}
         <button
           type="button"
           aria-label={preview ? "Exit Preview" : "Preview"}
           title={preview ? "Exit Preview" : "Preview"}
           onClick={() => useEditor.getState().togglePreview()}
           className={cn(
-            "tap-smooth inline-flex h-9 items-center justify-center gap-1.5 rounded-xl px-2.5 sm:px-3 text-xs font-semibold transition-all",
-            preview ? "bg-slate-800 text-white" : "text-slate-700 hover:bg-slate-100",
+            "tap-smooth items-center justify-center gap-1.5 rounded-xl px-2.5 sm:px-3 text-xs font-semibold transition-all cursor-pointer",
+            preview ? "inline-flex h-9 bg-slate-800 text-white" : "hidden md:inline-flex h-9 text-slate-700 hover:bg-slate-100",
           )}
         >
           <Eye className="size-4" strokeWidth={1.75} />
-          <span className="hidden sm:inline">{preview ? "Done" : "Preview"}</span>
+          <span>{preview ? "Done" : "Preview"}</span>
         </button>
 
         <button
           type="button"
           onClick={() => useEditor.getState().openPublish()}
-          className="tap-smooth hidden sm:inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#53389E] hover:bg-purple-800 px-3.5 text-xs font-semibold text-white shadow-xs shadow-purple-600/25 transition-all"
+          className="tap-smooth inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#53389E] hover:bg-purple-800 px-2.5 sm:px-3.5 text-xs font-semibold text-white shadow-xs shadow-purple-600/25 transition-all cursor-pointer"
         >
           <Upload className="size-3.5" strokeWidth={2} />
           <span>Publish</span>
@@ -367,26 +405,17 @@ export function TopBar() {
                 </div>
               </div>
 
-              {/* On mobile, allow toggling Preview & Publish from the menu */}
-              <div className="block sm:hidden border-b border-slate-100 pb-1 mb-1">
-                <MenuRow
-                  icon={Eye}
-                  label={preview ? "Done Previewing" : "Preview Site"}
-                  onClick={() => {
-                    setMoreOpen(false);
-                    useEditor.getState().togglePreview();
-                  }}
-                />
-                <MenuRow
-                  icon={Upload}
-                  label="Publish Site"
-                  onClick={() => {
-                    setMoreOpen(false);
-                    useEditor.getState().openPublish();
-                  }}
-                />
-              </div>
+              {/* Publish shortcut kept on mobile menu too if needed */}
+              <div className="hidden" />
 
+              <MenuRow
+                icon={SlidersHorizontal}
+                label="Store settings"
+                onClick={() => {
+                  setMoreOpen(false);
+                  useEditor.getState().openSheet("store-settings");
+                }}
+              />
               <MenuRow
                 icon={Share2}
                 label="Share Link"
@@ -397,18 +426,10 @@ export function TopBar() {
               />
               <MenuRow
                 icon={Download}
-                label="Export static HTML"
+                label="Download static page"
                 onClick={() => {
                   setMoreOpen(false);
                   useEditor.getState().exportHtml();
-                }}
-              />
-              <MenuRow
-                icon={RotateCcw}
-                label="Reset Template"
-                onClick={() => {
-                  setMoreOpen(false);
-                  if (window.confirm("Restore the original template?")) useEditor.getState().reset();
                 }}
               />
             </div>

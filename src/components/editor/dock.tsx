@@ -1,12 +1,15 @@
 import {
   ArrowUpDown,
+  ChevronLeft,
   Eye,
   Film,
   Image,
   Layers,
   LayoutTemplate,
+  Link2,
   MessageCircle,
   Palette,
+  Plus,
   PlusCircle,
   RectangleHorizontal,
   SlidersHorizontal,
@@ -22,120 +25,164 @@ import type { SheetKind } from "@/lib/editor/types";
 export function Dock() {
   const selectedId = useEditor((s) => s.selectedId);
   const section = useEditor((s) => selectedSection(s));
+  const hasWhatsapp = useEditor((s) => {
+    const nav = s.pages[s.pageId].sections.find((sec) => sec.type === "navbar");
+    return Boolean(nav && nav.type === "navbar" && nav.whatsappNumber?.trim());
+  });
 
   if (section?.type === "navbar") {
     return <HeaderEditor section={section} />;
   }
 
-  const items = (() => {
+  const items: { id: string; label: string; icon: typeof Image; thumb?: string; mobileOnly?: boolean; desktopOnly?: boolean; action: () => void }[] = (() => {
     const open = (sheet: SheetKind) => () => useEditor.getState().openSheet(sheet);
     if (!selectedId || !section) {
       return [
-        { id: "arrange", label: "Arrange", icon: ArrowUpDown, action: open("arrange") },
-        { id: "add", label: "Add", icon: PlusCircle, action: open("add") },
-        { id: "themes", label: "Themes", icon: Layers, action: open("themes") },
-        { id: "color", label: "Background", icon: Palette, action: open("page-color") },
-        {
-          id: "preview",
-          label: "Preview",
-          icon: Eye,
-          action: () => useEditor.getState().togglePreview(),
-        },
+        // Phone bottom navigation: "Sections", "+ Add", "Preview"
+        { id: "sections", label: "Sections", icon: Layers, mobileOnly: true, action: open("arrange") },
+        { id: "add-mobile", label: "+ Add", icon: Plus, mobileOnly: true, action: () => useEditor.getState().openAddAt(null) },
+        { id: "preview-mobile", label: "Preview", icon: Eye, mobileOnly: true, action: () => useEditor.getState().togglePreview() },
+        // Desktop bottom dock (Preview lives in top bar once per screen)
+        { id: "add", label: "+ Add", icon: PlusCircle, desktopOnly: true, action: () => useEditor.getState().openAddAt(null) },
+        { id: "store-settings", label: "Store", icon: MessageCircle, desktopOnly: true, action: open("store-settings") },
+        { id: "themes", label: "Template", icon: Layers, desktopOnly: true, action: open("themes") },
+        { id: "color", label: "Page settings", icon: Palette, desktopOnly: true, action: open("page-color") },
       ];
     }
     if (selectedId === "product-card") {
-      return [
-        { id: "box", label: "Card Frame", icon: Square, action: open("product-card-box") },
-        { id: "image", label: "Image", icon: Image, action: open("product-card-image") },
-        { id: "details", label: "Content", icon: Tag, action: open("product-card-details") },
+      // Order: show price, badge & WhatsApp toggles -> image shape -> text layout -> colors -> border & corners
+      const cardItems: { id: string; label: string; icon: typeof Image; action: () => void }[] = [
+        { id: "badges", label: "Visibility", icon: Tag, action: open("product-card-badges") },
+        { id: "image", label: "Image shape", icon: Image, action: open("product-card-image") },
+        { id: "details", label: "Text layout", icon: Layers, action: open("product-card-details") },
         { id: "color", label: "Colors", icon: Palette, action: open("product-card-color") },
-        { id: "whatsapp", label: "WhatsApp", icon: MessageCircle, action: open("product-card-cta") },
+        { id: "box", label: "Corners & border", icon: Square, action: open("product-card-box") },
       ];
+      if (!hasWhatsapp) {
+        cardItems.push({ id: "setup-wa", label: "Set up WhatsApp", icon: MessageCircle, action: open("store-settings") });
+      }
+      return cardItems;
     }
     switch (section.type) {
-      case "hero":
-        return [
-          { id: "background", label: "Background", icon: Palette, action: open("hero-background") },
-          { id: "ratio", label: "Ratio", icon: RectangleHorizontal, action: open("hero-ratio") },
-          { id: "padding", label: "Padding", icon: SlidersHorizontal, action: open("hero-padding") },
-          { id: "curve", label: "Curve", icon: Square, action: open("hero-radius") },
-          { id: "animation", label: "Animation", icon: Film, action: open("hero-animation") },
-          { id: "images", label: "Images", icon: Image, action: open("hero-media") },
+      case "hero": {
+        const currentThumb = section.slides[section.active] ?? section.slides[0];
+        const heroItems: { id: string; label: string; icon: typeof Image; thumb?: string; action: () => void }[] = [
+          {
+            id: "replace-image",
+            label: "Replace image",
+            icon: Image,
+            thumb: currentThumb,
+            action: open("hero-media"),
+          },
+          { id: "link", label: "Link", icon: Link2, action: open("hero-link") },
+          { id: "appearance", label: "Appearance", icon: SlidersHorizontal, action: open("hero-appearance") },
         ];
+        if (section.slides.length > 1) {
+          heroItems.push({ id: "slideshow", label: "Slideshow", icon: Film, action: open("hero-animation") });
+        }
+        return heroItems;
+      }
       case "grid":
         return [
-          { id: "template", label: "Template", icon: LayoutTemplate, action: open("grid-layout") },
-          { id: "style", label: "Style", icon: SlidersHorizontal, action: open("product-card-style") },
-          { id: "badges", label: "Badges", icon: Tag, action: open("product-card-badges") },
-          { id: "color", label: "Color", icon: Palette, action: open("section-color") },
+          { id: "template", label: "Layout", icon: LayoutTemplate, action: open("grid-layout") },
+          { id: "style", label: "Shared card style", icon: SlidersHorizontal, action: open("product-card-style") },
+          { id: "badges", label: "Toggles", icon: Tag, action: open("product-card-badges") },
+          { id: "color", label: "Appearance", icon: Palette, action: open("section-color") },
         ];
       case "product-card":
         return [
-          { id: "box", label: "Card Frame", icon: Square, action: open("product-card-box") },
-          { id: "image", label: "Image", icon: Image, action: open("product-card-image") },
-          { id: "details", label: "Content", icon: Layers, action: open("product-card-details") },
+          { id: "badges", label: "Visibility", icon: Tag, action: open("product-card-badges") },
+          { id: "image", label: "Image shape", icon: Image, action: open("product-card-image") },
+          { id: "details", label: "Text layout", icon: Layers, action: open("product-card-details") },
           { id: "color", label: "Colors", icon: Palette, action: open("product-card-color") },
-          { id: "whatsapp", label: "WhatsApp", icon: MessageCircle, action: open("product-card-cta") },
+          { id: "box", label: "Corners & border", icon: Square, action: open("product-card-box") },
         ];
       case "featured":
+        // Order: choose products -> heading -> quantity -> layout -> shared card style -> appearance
         return [
-          { id: "template", label: "Template", icon: LayoutTemplate, action: open("featured-template") },
-          { id: "style", label: "Card Style", icon: SlidersHorizontal, action: open("product-card-style") },
-          { id: "badges", label: "Elements", icon: Tag, action: open("product-card-badges") },
-          { id: "color", label: "Color", icon: Palette, action: open("section-color") },
+          { id: "template", label: "Content & Layout", icon: LayoutTemplate, action: open("featured-template") },
+          { id: "style", label: "Shared card style", icon: SlidersHorizontal, action: open("product-card-style") },
+          { id: "color", label: "Appearance", icon: Palette, action: open("section-color") },
         ];
       case "categories":
         return [
-          { id: "template", label: "Template", icon: LayoutTemplate, action: open("categories-template") },
-          { id: "color", label: "Color", icon: Palette, action: open("section-color") },
+          { id: "template", label: "Items & Layout", icon: LayoutTemplate, action: open("categories-template") },
+          { id: "color", label: "Appearance", icon: Palette, action: open("section-color") },
         ];
       case "brands":
         return [
-          { id: "template", label: "Template", icon: LayoutTemplate, action: open("brands-template") },
-          { id: "style", label: "Style", icon: SlidersHorizontal, action: open("brands-style") },
-          { id: "items", label: "Brands", icon: Tag, action: open("brands-items") },
-          { id: "color", label: "Color", icon: Palette, action: open("section-color") },
+          { id: "items", label: "Items & Reorder", icon: Tag, action: open("brands-items") },
+          { id: "template", label: "Layout", icon: LayoutTemplate, action: open("brands-template") },
+          { id: "style", label: "Appearance", icon: SlidersHorizontal, action: open("brands-style") },
+          { id: "color", label: "Background", icon: Palette, action: open("section-color") },
         ];
       case "about":
         return [
-          { id: "template", label: "Template", icon: LayoutTemplate, action: open("about-template") },
-          { id: "color", label: "Color", icon: Palette, action: open("section-color") },
+          { id: "template", label: "Text & Layout", icon: LayoutTemplate, action: open("about-template") },
+          { id: "color", label: "Appearance", icon: Palette, action: open("section-color") },
         ];
       case "filter-sort":
         return [
-          { id: "filtersort", label: "Filter & Sort", icon: SlidersHorizontal, action: open("catalog-filter-sort") },
-          { id: "color", label: "Color", icon: Palette, action: open("section-color") },
+          { id: "filtersort", label: "Filters & Sort", icon: SlidersHorizontal, action: open("catalog-filter-sort") },
+          { id: "color", label: "Appearance", icon: Palette, action: open("section-color") },
           { id: "arrange", label: "Arrange", icon: ArrowUpDown, action: open("arrange") },
         ];
       case "catalog":
         return [
-          { id: "template", label: "Template", icon: LayoutTemplate, action: open("catalog-template") },
-          { id: "style", label: "Style", icon: SlidersHorizontal, action: open("product-card-style") },
-          { id: "badges", label: "Badges", icon: Tag, action: open("product-card-badges") },
-          { id: "color", label: "Color", icon: Palette, action: open("section-color") },
+          { id: "template", label: "Grid & Layout", icon: LayoutTemplate, action: open("catalog-template") },
+          { id: "filtersort", label: "Filters & Sort", icon: SlidersHorizontal, action: open("catalog-filter-sort") },
+          { id: "style", label: "Shared card style", icon: Tag, action: open("product-card-style") },
+          { id: "color", label: "Appearance", icon: Palette, action: open("section-color") },
         ];
-      case "product":
-        return [
-          { id: "template", label: "Layout", icon: LayoutTemplate, action: open("product-template") },
+      case "product": {
+        const prodItems: { id: string; label: string; icon: typeof Image; action: () => void }[] = [
+          { id: "elements", label: "Product & Variants", icon: SlidersHorizontal, action: open("product-elements") },
           { id: "gallery", label: "Gallery", icon: RectangleHorizontal, action: open("product-gallery") },
-          { id: "elements", label: "Elements", icon: SlidersHorizontal, action: open("product-elements") },
-          { id: "cta", label: "WhatsApp", icon: MessageCircle, action: open("product-cta") },
+          { id: "cta", label: "Order button", icon: MessageCircle, action: open("product-cta") },
+          { id: "template", label: "Appearance", icon: LayoutTemplate, action: open("product-template") },
           { id: "color", label: "Colors", icon: Palette, action: open("product-color") },
           { id: "typography", label: "Typography", icon: Type, action: open("product-typography") },
         ];
+        if (!hasWhatsapp) {
+          prodItems.push({ id: "setup-wa", label: "Set up WhatsApp", icon: MessageCircle, action: open("store-settings") });
+        }
+        return prodItems;
+      }
       case "footer":
         return [
-          { id: "template", label: "Template", icon: LayoutTemplate, action: open("footer-style") },
-          { id: "color", label: "Color", icon: Palette, action: open("section-color") },
+          { id: "template", label: "Details & Layout", icon: LayoutTemplate, action: open("footer-style") },
+          { id: "color", label: "Appearance", icon: Palette, action: open("section-color") },
         ];
       default:
         return [];
     }
   })();
 
+  const activeSectionLabel =
+    selectedId === "product-card"
+      ? "Product Card"
+      : section
+        ? section.name
+        : null;
+
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pointer-events-none p-3 pb-safe">
-      <div className="pointer-events-auto flex items-center justify-center max-w-full">
+      <div className="pointer-events-auto flex flex-col items-center gap-1.5 max-w-full">
+        {activeSectionLabel && (
+          <div className="flex items-center gap-1.5 rounded-full border border-slate-200/90 bg-surface/95 px-2.5 py-1 text-xs font-semibold text-ink shadow-md backdrop-blur-xl">
+            <button
+              type="button"
+              onClick={() => useEditor.getState().deselect()}
+              aria-label="Back to sections"
+              className="inline-flex items-center gap-0.5 rounded-full pr-1.5 text-muted hover:text-ink cursor-pointer"
+            >
+              <ChevronLeft className="size-3.5" />
+              <span>Back</span>
+            </button>
+            <span className="h-3 w-px bg-line-soft" />
+            <span className="max-w-44 truncate">{activeSectionLabel}</span>
+          </div>
+        )}
         <div className="flex items-center gap-1 sm:gap-1.5 rounded-3xl border border-slate-200/90 bg-surface/95 px-2 py-1.5 shadow-[0_8px_30px_rgb(0,0,0,0.12)] backdrop-blur-xl overflow-x-auto max-w-[calc(100vw-24px)] no-scrollbar">
           {items.map((item) => {
             const Icon = item.icon;
@@ -145,10 +192,21 @@ export function Dock() {
                 type="button"
                 onClick={item.action}
                 className={cn(
-                  "tap-smooth flex h-14 min-w-14 sm:min-w-16 px-1.5 shrink-0 flex-col items-center justify-center gap-1 rounded-2xl text-ink transition-all duration-150 hover:bg-fill hover:-translate-y-0.5 active:translate-y-0",
+                  "tap-smooth flex h-14 shrink-0 flex-col items-center justify-center gap-1 rounded-2xl text-ink transition-all duration-150 hover:bg-fill hover:-translate-y-0.5 active:translate-y-0 cursor-pointer",
+                  item.thumb ? "px-2.5 min-w-20" : "px-2.5 min-w-16",
+                  item.mobileOnly && "md:hidden",
+                  item.desktopOnly && "hidden md:flex",
                 )}
               >
-                <Icon className="size-5 stroke-[1.75]" />
+                {item.thumb ? (
+                  <img
+                    src={item.thumb}
+                    alt=""
+                    className="h-5 w-8 rounded-md object-cover border border-line-soft shadow-2xs"
+                  />
+                ) : (
+                  <Icon className="size-5 stroke-[1.75]" />
+                )}
                 <span className="text-[11px] font-medium leading-none whitespace-nowrap">{item.label}</span>
               </button>
             );
