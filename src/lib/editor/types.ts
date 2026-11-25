@@ -499,7 +499,6 @@ export type Pages = Record<PageId, PageModel>;
 export type SheetKind =
   | "arrange"
   | "themes"
-  | "store-settings"
   | "add"
   | "page-color"
   | "hero-layout"

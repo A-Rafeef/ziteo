@@ -25,10 +25,6 @@ import type { SheetKind } from "@/lib/editor/types";
 export function Dock() {
   const selectedId = useEditor((s) => s.selectedId);
   const section = useEditor((s) => selectedSection(s));
-  const hasWhatsapp = useEditor((s) => {
-    const nav = s.pages[s.pageId].sections.find((sec) => sec.type === "navbar");
-    return Boolean(nav && nav.type === "navbar" && nav.whatsappNumber?.trim());
-  });
 
   if (section?.type === "navbar") {
     return <HeaderEditor section={section} />;
@@ -38,30 +34,20 @@ export function Dock() {
     const open = (sheet: SheetKind) => () => useEditor.getState().openSheet(sheet);
     if (!selectedId || !section) {
       return [
-        // Phone bottom navigation: "Sections", "+ Add", "Preview"
-        { id: "sections", label: "Sections", icon: Layers, mobileOnly: true, action: open("arrange") },
-        { id: "add-mobile", label: "+ Add", icon: Plus, mobileOnly: true, action: () => useEditor.getState().openAddAt(null) },
-        { id: "preview-mobile", label: "Preview", icon: Eye, mobileOnly: true, action: () => useEditor.getState().togglePreview() },
-        // Desktop bottom dock (Preview lives in top bar once per screen)
-        { id: "add", label: "+ Add", icon: PlusCircle, desktopOnly: true, action: () => useEditor.getState().openAddAt(null) },
-        { id: "store-settings", label: "Store", icon: MessageCircle, desktopOnly: true, action: open("store-settings") },
-        { id: "themes", label: "Template", icon: Layers, desktopOnly: true, action: open("themes") },
-        { id: "color", label: "Page settings", icon: Palette, desktopOnly: true, action: open("page-color") },
+        { id: "add", label: "+ Add", icon: PlusCircle, action: () => useEditor.getState().openAddAt(null) },
+        { id: "themes", label: "Template", icon: Layers, action: open("themes") },
+        { id: "color", label: "Page settings", icon: Palette, action: open("page-color") },
       ];
     }
     if (selectedId === "product-card") {
       // Order: show price, badge & WhatsApp toggles -> image shape -> text layout -> colors -> border & corners
-      const cardItems: { id: string; label: string; icon: typeof Image; action: () => void }[] = [
+      return [
         { id: "badges", label: "Visibility", icon: Tag, action: open("product-card-badges") },
         { id: "image", label: "Image shape", icon: Image, action: open("product-card-image") },
         { id: "details", label: "Text layout", icon: Layers, action: open("product-card-details") },
         { id: "color", label: "Colors", icon: Palette, action: open("product-card-color") },
         { id: "box", label: "Corners & border", icon: Square, action: open("product-card-box") },
       ];
-      if (!hasWhatsapp) {
-        cardItems.push({ id: "setup-wa", label: "Set up WhatsApp", icon: MessageCircle, action: open("store-settings") });
-      }
-      return cardItems;
     }
     switch (section.type) {
       case "hero": {
@@ -135,18 +121,14 @@ export function Dock() {
           { id: "color", label: "Appearance", icon: Palette, action: open("section-color") },
         ];
       case "product": {
-        const prodItems: { id: string; label: string; icon: typeof Image; action: () => void }[] = [
-          { id: "elements", label: "Product & Variants", icon: SlidersHorizontal, action: open("product-elements") },
+        return [
+          { id: "elements", label: "Display", icon: SlidersHorizontal, action: open("product-elements") },
           { id: "gallery", label: "Gallery", icon: RectangleHorizontal, action: open("product-gallery") },
           { id: "cta", label: "Order button", icon: MessageCircle, action: open("product-cta") },
           { id: "template", label: "Appearance", icon: LayoutTemplate, action: open("product-template") },
           { id: "color", label: "Colors", icon: Palette, action: open("product-color") },
           { id: "typography", label: "Typography", icon: Type, action: open("product-typography") },
         ];
-        if (!hasWhatsapp) {
-          prodItems.push({ id: "setup-wa", label: "Set up WhatsApp", icon: MessageCircle, action: open("store-settings") });
-        }
-        return prodItems;
       }
       case "footer":
         return [
@@ -166,7 +148,10 @@ export function Dock() {
         : null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pointer-events-none p-3 pb-safe">
+    <div
+      style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+      className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pointer-events-none px-3 pt-2"
+    >
       <div className="pointer-events-auto flex flex-col items-center gap-1.5 max-w-full">
         {activeSectionLabel && (
           <div className="flex items-center gap-1.5 rounded-full border border-slate-200/90 bg-surface/95 px-2.5 py-1 text-xs font-semibold text-ink shadow-md backdrop-blur-xl">
@@ -174,7 +159,7 @@ export function Dock() {
               type="button"
               onClick={() => useEditor.getState().deselect()}
               aria-label="Back to sections"
-              className="inline-flex items-center gap-0.5 rounded-full pr-1.5 text-muted hover:text-ink cursor-pointer"
+              className="inline-flex min-h-8 items-center gap-0.5 rounded-full pr-1.5 text-muted hover:text-ink cursor-pointer"
             >
               <ChevronLeft className="size-3.5" />
               <span>Back</span>
@@ -192,10 +177,8 @@ export function Dock() {
                 type="button"
                 onClick={item.action}
                 className={cn(
-                  "tap-smooth flex h-14 shrink-0 flex-col items-center justify-center gap-1 rounded-2xl text-ink transition-all duration-150 hover:bg-fill hover:-translate-y-0.5 active:translate-y-0 cursor-pointer",
-                  item.thumb ? "px-2.5 min-w-20" : "px-2.5 min-w-16",
-                  item.mobileOnly && "md:hidden",
-                  item.desktopOnly && "hidden md:flex",
+                  "tap-smooth flex h-12 sm:h-14 shrink-0 flex-col items-center justify-center gap-1 rounded-2xl text-ink transition-all duration-150 hover:bg-fill hover:-translate-y-0.5 active:translate-y-0 cursor-pointer",
+                  item.thumb ? "px-2.5 min-w-20" : "px-3 min-w-16",
                 )}
               >
                 {item.thumb ? (

@@ -17,7 +17,6 @@ import {
   Redo2,
   Share2,
   ShoppingBag,
-  SlidersHorizontal,
   Smartphone,
   Tablet,
   Undo2,
@@ -156,15 +155,15 @@ export function TopBar() {
   };
 
   return (
-    <header className="z-30 flex h-14 shrink-0 items-center justify-between border-b border-slate-200/90 bg-surface/95 px-3 sm:px-6 shadow-2xs backdrop-blur-xl">
+    <header className="z-30 flex h-14 shrink-0 items-center justify-between gap-0.5 sm:gap-2 border-b border-slate-200/90 bg-surface/95 px-1 sm:px-6 shadow-2xs backdrop-blur-xl">
       {/* Left: Home outline icon + Undo/Redo arrows */}
-      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+      <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
         <button
           type="button"
           title="Go to Home page"
           aria-label="Go to Home page"
           onClick={() => useEditor.getState().switchPage("home")}
-          className="tap-smooth flex size-9 items-center justify-center rounded-xl text-[#53389E] hover:bg-purple-50 transition-all active:scale-95"
+          className="tap-smooth flex size-11 items-center justify-center rounded-xl text-[#53389E] hover:bg-purple-50 transition-all active:scale-95 cursor-pointer"
         >
           <Home className="size-5 stroke-[2]" />
         </button>
@@ -177,7 +176,7 @@ export function TopBar() {
           aria-label="Undo"
           disabled={!canUndo}
           onClick={() => useEditor.getState().undo()}
-          className="tap-smooth flex size-9 items-center justify-center rounded-xl text-slate-400 disabled:opacity-30 hover:bg-slate-50 hover:text-slate-700 transition-all active:scale-95"
+          className="tap-smooth flex size-11 items-center justify-center rounded-xl text-slate-400 disabled:opacity-30 hover:bg-slate-50 hover:text-slate-700 transition-all active:scale-95 cursor-pointer"
         >
           <Undo2 className="size-5 stroke-[2]" />
         </button>
@@ -188,27 +187,27 @@ export function TopBar() {
           aria-label="Redo"
           disabled={!canRedo}
           onClick={() => useEditor.getState().redo()}
-          className="tap-smooth flex size-9 items-center justify-center rounded-xl text-slate-400 disabled:opacity-30 hover:bg-slate-50 hover:text-slate-700 transition-all active:scale-95"
+          className="tap-smooth flex size-11 items-center justify-center rounded-xl text-slate-400 disabled:opacity-30 hover:bg-slate-50 hover:text-slate-700 transition-all active:scale-95 cursor-pointer"
         >
           <Redo2 className="size-5 stroke-[2]" />
         </button>
       </div>
 
-      {/* Center: Page Selector Pill + Desktop Device Switcher + Zoom */}
-      <div className="flex min-w-0 flex-1 items-center justify-center gap-2 sm:gap-4 px-2">
-        <div ref={pageRef} className="relative">
+      {/* Center: Page Selector Pill + Desktop/Tablet Device Switcher */}
+      <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 sm:gap-4 px-0.5 sm:px-2">
+        <div ref={pageRef} className="relative min-w-0 max-w-full">
           <button
             type="button"
             onClick={() => {
               setPageOpen((open) => !open);
               setMoreOpen(false);
             }}
-            className="tap-smooth-sm flex items-center gap-2 rounded-full border border-[#D5DEFF] bg-[#EEF2FF] px-3.5 sm:px-4 py-1.5 text-xs sm:text-sm font-semibold tracking-tight text-slate-800 shadow-2xs hover:bg-[#E0E7FF] transition-all active:scale-98"
+            className="tap-smooth-sm flex h-11 items-center gap-1 sm:gap-2 rounded-full border border-[#D5DEFF] bg-[#EEF2FF] px-2.5 sm:px-4 text-xs sm:text-sm font-semibold tracking-tight text-slate-800 shadow-2xs hover:bg-[#E0E7FF] transition-all active:scale-98 cursor-pointer max-w-full"
           >
-            <Layers className="size-4 text-[#53389E]" strokeWidth={2} />
+            <Layers className="size-4 shrink-0 text-[#53389E]" strokeWidth={2} />
             <span className="truncate">{selectedId === "product-card" ? "Product card" : pages[pageId].title}</span>
             <ChevronDown
-              className="size-3.5 text-slate-500 transition-transform duration-200"
+              className="size-3.5 shrink-0 text-slate-500 transition-transform duration-200"
               style={{ transform: pageOpen ? "rotate(180deg)" : "rotate(0deg)" }}
               strokeWidth={2}
             />
@@ -293,8 +292,8 @@ export function TopBar() {
         </div>
       </div>
 
-      {/* Right: Design Save Status + Preview (desktop, or Done when previewing) + Publish + More Options */}
-      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+      {/* Right: Design Save Status + Preview + Publish + More Options */}
+      <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
         {!preview && (
           <div
             role="status"
@@ -340,21 +339,24 @@ export function TopBar() {
           title={preview ? "Exit Preview" : "Preview"}
           onClick={() => useEditor.getState().togglePreview()}
           className={cn(
-            "tap-smooth items-center justify-center gap-1.5 rounded-xl px-2.5 sm:px-3 text-xs font-semibold transition-all cursor-pointer",
-            preview ? "inline-flex h-9 bg-slate-800 text-white" : "hidden md:inline-flex h-9 text-slate-700 hover:bg-slate-100",
+            "tap-smooth inline-flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl px-2 sm:px-3 text-xs font-semibold transition-all cursor-pointer",
+            preview ? "bg-slate-800 text-white" : "text-slate-700 hover:bg-slate-100",
           )}
         >
           <Eye className="size-4" strokeWidth={1.75} />
-          <span>{preview ? "Done" : "Preview"}</span>
+          <span className="hidden md:inline">{preview ? "Done" : "Preview"}</span>
+          {preview && <span className="md:hidden">Done</span>}
         </button>
 
         <button
           type="button"
           onClick={() => useEditor.getState().openPublish()}
-          className="tap-smooth inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#53389E] hover:bg-purple-800 px-2.5 sm:px-3.5 text-xs font-semibold text-white shadow-xs shadow-purple-600/25 transition-all cursor-pointer"
+          aria-label="Publish"
+          title="Publish"
+          className="tap-smooth inline-flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl bg-[#53389E] hover:bg-purple-800 px-2.5 sm:px-3.5 text-xs font-semibold text-white shadow-xs shadow-purple-600/25 transition-all cursor-pointer"
         >
-          <Upload className="size-3.5" strokeWidth={2} />
-          <span>Publish</span>
+          <Upload className="size-4 sm:size-3.5" strokeWidth={2} />
+          <span className="hidden sm:inline">Publish</span>
         </button>
 
         <div ref={moreRef} className="relative">
@@ -366,56 +368,13 @@ export function TopBar() {
               setMoreOpen((open) => !open);
               setPageOpen(false);
             }}
-            className="tap-smooth flex size-9 items-center justify-center rounded-xl text-slate-800 hover:bg-slate-100 hover:text-slate-950 transition-all active:scale-95"
+            className="tap-smooth flex size-11 items-center justify-center rounded-xl text-slate-800 hover:bg-slate-100 hover:text-slate-950 transition-all active:scale-95 cursor-pointer"
           >
             <Menu className="size-5 stroke-[2]" />
           </button>
 
           {moreOpen && (
-            <div className="animate-scale-in absolute top-full right-0 mt-2 z-50 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white py-1.5 shadow-2xl">
-              {/* Device Mode Switcher */}
-              <div className="border-b border-slate-100 px-3 py-2">
-                <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1.5">
-                  Device View
-                </div>
-                <div className="flex items-center rounded-xl bg-slate-100/90 p-1 gap-1">
-                  {DEVICES.map((item) => {
-                    const Icon = item.icon;
-                    const active = device === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => {
-                          useEditor.getState().setDevice(item.id);
-                        }}
-                        className={cn(
-                          "tap-smooth flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
-                          active
-                            ? "bg-white text-[#53389E] shadow-xs"
-                            : "text-slate-500 hover:text-slate-800",
-                        )}
-                        title={item.label}
-                      >
-                        <Icon className="size-3.5" strokeWidth={2} />
-                        <span>{item.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Publish shortcut kept on mobile menu too if needed */}
-              <div className="hidden" />
-
-              <MenuRow
-                icon={SlidersHorizontal}
-                label="Store settings"
-                onClick={() => {
-                  setMoreOpen(false);
-                  useEditor.getState().openSheet("store-settings");
-                }}
-              />
+            <div className="animate-scale-in absolute top-full right-0 mt-2 z-50 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white py-1.5 shadow-2xl">
               <MenuRow
                 icon={Share2}
                 label="Share Link"

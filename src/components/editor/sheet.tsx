@@ -56,7 +56,6 @@ import { PageSectionsList } from "@/components/editor/page-sections-panel";
 const TITLES: Record<SheetKind, { title: string; subtitle: string }> = {
   arrange: { title: "Page sections", subtitle: "Select, reorder, hide, duplicate, or insert sections." },
   themes: { title: "Template", subtitle: "Choose store theme or reset starter template." },
-  "store-settings": { title: "Store settings", subtitle: "WhatsApp order destination and store currency." },
   add: { title: "Add section", subtitle: "Insert a section on this page." },
   "page-color": { title: "Page settings", subtitle: "Background behind this page." },
   "hero-width": { title: "Spacing", subtitle: "Banner width & side spacing." },
@@ -78,8 +77,8 @@ const TITLES: Record<SheetKind, { title: string; subtitle: string }> = {
   "catalog-text": { title: "Catalog", subtitle: "" },
   "product-template": { title: "Product Layout", subtitle: "Stacked, split or editorial grid." },
   "product-gallery": { title: "Gallery & Ratio", subtitle: "Aspect ratio, radius & thumbnails." },
-  "product-elements": { title: "Elements", subtitle: "Toggle badges, ratings, colors & sizes." },
-  "product-cta": { title: "WhatsApp CTA", subtitle: "Phone number, button text & styling." },
+  "product-elements": { title: "Display", subtitle: "Toggle visible product elements." },
+  "product-cta": { title: "Order button style", subtitle: "Button label, color & sticky bar." },
   "product-color": { title: "Product Colors", subtitle: "Background & price styling." },
   "product-typography": { title: "Typography", subtitle: "Title sizing & font weights." },
   "product-text": { title: "Product", subtitle: "" },
@@ -103,7 +102,6 @@ const TITLES: Record<SheetKind, { title: string; subtitle: string }> = {
 function scopedSheetTitle(kind: SheetKind, baseTitle: string, pageId: string, sec: Section | null): string {
   const pageLabel = pageId === "home" ? "Home page" : pageId === "shop" ? "Shop page" : "Product page";
   if (kind.startsWith("product-card-") || sec?.id === "product-card") return "Product card · All products";
-  if (kind === "store-settings") return "Store settings · All pages";
   if (kind === "footer-style" || sec?.type === "footer") return "Footer · All pages";
   if (kind.startsWith("hero-")) return `Banner · ${pageLabel}`;
   if (kind === "arrange" || kind === "add" || kind === "page-color" || kind === "themes") return `${baseTitle} · ${pageLabel}`;
@@ -193,10 +191,10 @@ export function Sheet() {
             : "sheet-max max-w-lg rounded-t-4xl",
         )}
       >
-        <div className="flex justify-center pt-3">
+        <div className="shrink-0 flex justify-center pt-3">
           <div className="h-1 w-10 rounded-full bg-line" />
         </div>
-        <div className="flex items-start justify-between px-5 py-3">
+        <div className="shrink-0 flex items-start justify-between px-5 py-3 border-b border-line-soft/60">
           <div>
             <h2 id="sheet-dialog-title" className="text-base font-semibold tracking-tight">{displayTitle}</h2>
             {meta.subtitle ? <p className="text-xs text-muted">{meta.subtitle}</p> : null}
@@ -205,12 +203,15 @@ export function Sheet() {
             type="button"
             aria-label="Close panel"
             onClick={() => useEditor.getState().closeSheet()}
-            className="tap-smooth inline-flex size-11 items-center justify-center rounded-full bg-fill text-ink hover:bg-line-soft transition-colors"
+            className="tap-smooth inline-flex size-11 items-center justify-center rounded-full bg-fill text-ink hover:bg-line-soft transition-colors cursor-pointer"
           >
             <X className="size-4" strokeWidth={1.75} />
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6">
+        <div
+          style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+          className="min-h-0 flex-1 overflow-y-auto px-5 pt-3"
+        >
           <SheetBody kind={sheet} />
         </div>
       </div>
@@ -225,8 +226,6 @@ function SheetBody({ kind }: { kind: SheetKind }) {
       return <PageSectionsList onSelectSection={() => useEditor.getState().closeSheet()} />;
     case "themes":
       return <Themes />;
-    case "store-settings":
-      return <StoreSettingsSheet />;
     case "add":
       return <AddList />;
     case "page-color":
@@ -646,9 +645,10 @@ function ArrangeSectionsSheet() {
 function Themes() {
   const currentTheme = useEditor((s) => (s.pages.home.background === "#0b0b0d" ? "ink" : "light"));
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 pb-8">
       <TemplateCard
         active={currentTheme === "light"}
+        label="Light"
         onClick={() => useEditor.getState().applyTheme("light")}
       >
         <div className="overflow-hidden rounded-xl border border-line-soft bg-surface p-2 shadow-2xs">
@@ -658,9 +658,11 @@ function Themes() {
           <div className="mt-1.5 h-10 rounded-md bg-slate-100" />
           <div className="mt-2 h-2 w-2/3 rounded-full bg-slate-200" />
         </div>
+        <span className="mt-2 block text-xs font-semibold text-ink">Light</span>
       </TemplateCard>
       <TemplateCard
         active={currentTheme === "ink"}
+        label="Dark"
         onClick={() => useEditor.getState().applyTheme("ink")}
       >
         <div className="overflow-hidden rounded-xl bg-ink p-2 text-on-ink shadow-2xs">
@@ -670,6 +672,7 @@ function Themes() {
           <div className="mt-1.5 h-10 rounded-md bg-white/10" />
           <div className="mt-2 h-2 w-2/3 rounded-full bg-white/20" />
         </div>
+        <span className="mt-2 block text-xs font-semibold text-ink">Dark</span>
       </TemplateCard>
 
       <div className="mt-2 border-t border-line-soft pt-3">
@@ -688,77 +691,6 @@ function Themes() {
           Reset template
         </button>
       </div>
-    </div>
-  );
-}
-
-function StoreSettingsSheet() {
-  const nav = useEditor((s) => s.pages[s.pageId].sections.find((sec) => sec.type === "navbar"));
-  const catalog = useEditor((s) => s.pages.shop.sections.find((sec) => sec.type === "catalog"));
-  const storedNumber =
-    nav && nav.type === "navbar" && nav.whatsappNumber != null ? nav.whatsappNumber : "";
-  const storedCurrency =
-    catalog && catalog.type === "catalog" && catalog.currency ? catalog.currency : "$";
-
-  const [phone, setPhone] = useState(storedNumber);
-  const [currency, setCurrency] = useState(storedCurrency);
-
-  useEffect(() => {
-    setPhone(storedNumber);
-  }, [storedNumber]);
-
-  useEffect(() => {
-    setCurrency(storedCurrency);
-  }, [storedCurrency]);
-
-  return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Seller WhatsApp Number</p>
-        <Field label="Phone number with country code (leave empty to disable ordering)">
-          <TextInput
-            value={phone}
-            placeholder="e.g. 919876543210"
-            onChange={(e) => setPhone(e.target.value)}
-          />
-        </Field>
-        {!phone.trim() && (
-          <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            No WhatsApp destination set. Product order buttons will ask sellers to configure a number instead of using a demo number.
-          </p>
-        )}
-      </div>
-
-      <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Store Currency</p>
-        <div className="grid grid-cols-3 gap-2">
-          {CURRENCY_PRESETS.map((c) => (
-            <button
-              key={c.code}
-              type="button"
-              aria-pressed={currency === c.code}
-              onClick={() => setCurrency(c.code)}
-              className={cn(
-                "rounded-xl border py-2 text-xs font-semibold transition-all cursor-pointer",
-                currency === c.code
-                  ? "border-accent bg-accent/10 text-accent"
-                  : "border-line-soft bg-surface text-ink hover:bg-fill",
-              )}
-            >
-              {c.code} · {c.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <PrimaryButton
-        onClick={() => {
-          useEditor.getState().updateStoreSettings({ whatsappNumber: phone, currency });
-          useEditor.getState().closeSheet();
-        }}
-      >
-        Save Store Settings
-      </PrimaryButton>
     </div>
   );
 }
@@ -1567,8 +1499,6 @@ function ProductGallerySheet({ sec }: { sec: ProductSection }) {
 }
 
 function ProductElementsSheet({ sec }: { sec: ProductSection }) {
-  const [badgeVal, setBadgeVal] = useState(sec.badgeText || "POPULAR");
-
   const toggles = [
     {
       key: "showBadge",
@@ -1604,56 +1534,9 @@ function ProductElementsSheet({ sec }: { sec: ProductSection }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Live Price & Stock Quick Edit */}
-      <div className="flex flex-col gap-2.5 rounded-2xl border border-line-soft bg-surface p-3.5 shadow-2xs">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-muted uppercase tracking-wider">Price & Stock</span>
-          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-            Updates live
-          </span>
-        </div>
-        <div className="grid grid-cols-2 gap-2.5">
-          <label className="block">
-            <span className="mb-1 block text-[11px] font-medium text-muted">Price ({sec.currency || "$"})</span>
-            <input
-              type="number"
-              min={0}
-              value={sec.price}
-              onChange={(e) => useEditor.getState().setProductField({ price: Math.max(0, Number(e.target.value) || 0) })}
-              className="w-full rounded-xl border border-line-soft bg-fill/40 px-3 py-1.5 text-xs text-ink outline-none focus:border-accent"
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[11px] font-medium text-muted">Stock count</span>
-            <input
-              type="number"
-              min={0}
-              value={sec.stock ?? 10}
-              onChange={(e) => useEditor.getState().setProductField({ stock: Math.max(0, Number(e.target.value) || 0) })}
-              className="w-full rounded-xl border border-line-soft bg-fill/40 px-3 py-1.5 text-xs text-ink outline-none focus:border-accent"
-            />
-          </label>
-        </div>
-      </div>
-
-      {/* Badge Text Input */}
-      {sec.showBadge !== false && (
-        <div className="flex flex-col gap-2 rounded-2xl border border-line-soft bg-surface p-3.5 shadow-2xs">
-          <label className="text-xs font-semibold text-muted uppercase tracking-wider">
-            Badge Text
-          </label>
-          <input
-            type="text"
-            value={badgeVal}
-            onChange={(e) => {
-              setBadgeVal(e.target.value);
-              useEditor.getState().patchSelected({ badgeText: e.target.value });
-            }}
-            placeholder="e.g. POPULAR, NEW, BESTSELLER, 20% OFF"
-            className="rounded-xl border border-line-soft bg-fill/50 px-3 py-2 text-sm font-medium text-ink focus:border-accent focus:bg-surface focus:outline-hidden"
-          />
-        </div>
-      )}
+      <p className="rounded-xl border border-line-soft bg-fill/50 px-3.5 py-2.5 text-xs text-muted">
+        Product prices, stock, and WhatsApp checkout sync automatically from your store.
+      </p>
 
       {/* Elements Visibility Toggles */}
       <div>
@@ -1670,6 +1553,7 @@ function ProductElementsSheet({ sec }: { sec: ProductSection }) {
               <button
                 type="button"
                 role="switch"
+                aria-label={item.label}
                 aria-checked={item.enabled}
                 onClick={() =>
                   useEditor.getState().patchSelected({ [item.key]: !item.enabled })
@@ -1695,7 +1579,6 @@ function ProductElementsSheet({ sec }: { sec: ProductSection }) {
 }
 
 function ProductCtaSheet({ sec }: { sec: ProductSection }) {
-  const [phone, setPhone] = useState(sec.whatsappNumber ?? "919876543210");
   const [btnText, setBtnText] = useState(sec.buttonText || "Buy on WhatsApp");
   const currentColor = sec.buttonColor || "#25D366";
   const sticky = sec.stickyButton ?? false;
@@ -1711,24 +1594,6 @@ function ProductCtaSheet({ sec }: { sec: ProductSection }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* WhatsApp Phone Number */}
-      <div className="flex flex-col gap-2 rounded-2xl border border-line-soft bg-surface p-3.5 shadow-2xs">
-        <label className="text-xs font-semibold text-muted uppercase tracking-wider">
-          WhatsApp Phone Number
-        </label>
-        <input
-          type="text"
-          value={phone}
-          onChange={(e) => {
-            setPhone(e.target.value);
-            useEditor.getState().patchSelected({ whatsappNumber: e.target.value });
-          }}
-          placeholder="e.g. 919876543210"
-          className="rounded-xl border border-line-soft bg-fill/50 px-3 py-2 text-sm font-medium text-ink focus:border-accent focus:bg-surface focus:outline-hidden"
-        />
-        <p className="text-[11px] text-muted">Include country code without + or spaces (e.g. 919876543210).</p>
-      </div>
-
       {/* Button Label */}
       <div className="flex flex-col gap-2 rounded-2xl border border-line-soft bg-surface p-3.5 shadow-2xs">
         <label className="text-xs font-semibold text-muted uppercase tracking-wider">

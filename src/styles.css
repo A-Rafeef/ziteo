@@ -39,9 +39,9 @@
 }
 
 .sheet-max {
-  max-height: min(34rem, 70dvh);
+  max-height: 75dvh;
 }
-@media (min-width: 640px) {
+@media (min-width: 768px) {
   .sheet-max {
     max-height: min(40rem, 85dvh);
   }

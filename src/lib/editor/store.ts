@@ -569,7 +569,16 @@ export const useEditor = create<EditorState>((set, get) => {
       pendingPast = null;
       set({ selectedId: null, sheet: null });
     },
-    setDevice: (device) => set({ device }),
+    setDevice: (device) => {
+      if (device === "desktop" && typeof window !== "undefined") {
+        // Fit 1152px desktop frame inside available width (accounting for left sidebar on md+)
+        const avail = window.innerWidth - (window.innerWidth >= 768 ? 320 : 24);
+        const fitZoom = avail < 1152 ? Math.max(70, Math.min(100, Math.floor((avail / 1152) * 100))) : 100;
+        set({ device, zoom: fitZoom });
+        return;
+      }
+      set({ device, zoom: 100 });
+    },
     nudgeZoom: (delta) => set({ zoom: Math.min(130, Math.max(70, get().zoom + delta)) }),
     resetZoom: () => set({ zoom: 100 }),
     togglePreview: (force) => {

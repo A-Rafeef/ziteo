@@ -341,10 +341,20 @@ function PublishModal() {
           </div>
         ) : (
           <div className="mt-4 rounded-2xl border border-line-soft bg-fill/40 px-3.5 py-2.5 text-left text-xs text-muted">
-            <span className="font-semibold text-ink block mb-0.5">Open live store unavailable</span>
-            No public tenant host is configured (`VITE_PUBLIC_STORE_URL` unset). Use <strong>Preview draft</strong> below or <strong>Download static page</strong>.
+            Your design is saved as a draft. Connect your store domain in dashboard settings to publish live.
           </div>
         )}
+        <button
+          type="button"
+          onClick={() => {
+            navigator.clipboard?.writeText(window.location.href).catch(() => undefined);
+            setCopied(true);
+            useEditor.getState().showToast("Preview link copied.");
+          }}
+          className="tap-smooth-sm mt-3 h-11 w-full rounded-full border border-line-soft bg-surface text-sm font-medium text-ink hover:bg-fill transition-colors cursor-pointer"
+        >
+          {copied ? "Preview link copied" : "Copy preview link"}
+        </button>
         <button
           type="button"
           onClick={() => {

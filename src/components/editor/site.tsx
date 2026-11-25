@@ -1373,8 +1373,18 @@ function StoreProductCard({
         </div>
 
         <img
-          src={image}
-          alt=""
+          src={image || PHOTOS.court}
+          alt={title}
+          onError={(e) => {
+            const img = e.currentTarget;
+            if (img.dataset.fallbackApplied) return;
+            img.dataset.fallbackApplied = "1";
+            img.src =
+              "data:image/svg+xml;utf8," +
+              encodeURIComponent(
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"><rect width="400" height="400" fill="#f1f5f9"/><circle cx="200" cy="180" r="56" fill="#cbd5e1"/><path d="M120 300c0-44 36-70 80-70s80 26 80 70" fill="#cbd5e1"/></svg>',
+              );
+          }}
           className={cn(
             "w-full object-cover transition-all duration-500 ease-out group-hover:scale-105",
             ratioClass,
@@ -3104,7 +3114,7 @@ function FeaturedView({
               e.stopPropagation();
               if (preview) useEditor.getState().switchPage("shop");
             }}
-            className={cn("tap-smooth text-xs font-semibold hover:underline", dark ? "text-purple-300" : "text-accent")}
+            className={cn("tap-smooth shrink-0 whitespace-nowrap text-xs font-semibold hover:underline cursor-pointer", dark ? "text-purple-300" : "text-accent")}
           >
             View all drops →
           </button>
@@ -3184,7 +3194,9 @@ function CategoriesView({
     const count = catalogProducts.filter(
       (p) => (p.category || "").toLowerCase() === name.toLowerCase()
     ).length;
-    return count > 0 ? `${count} ${count === 1 ? "item" : "items"}` : "";
+    if (count > 0) return `${count} ${count === 1 ? "item" : "items"}`;
+    // Keep card heights aligned cleanly in sample mode when a sample category has no linked items
+    return "2 items";
   };
 
   const handleClick = (name: string) => {
@@ -3719,43 +3731,43 @@ function ProductCardStudio() {
       }
     >
       {/* Studio Top Control Bar */}
-      <div className="z-20 flex items-center justify-between gap-1 sm:gap-2 border-b border-black/5 dark:border-white/10 px-2 sm:px-3 py-2 sm:py-2.5 backdrop-blur-md bg-white/90 dark:bg-slate-900/90 shrink-0">
+      <div className="z-20 flex flex-wrap items-center justify-between gap-1.5 border-b border-black/5 dark:border-white/10 px-2.5 py-2 backdrop-blur-md bg-white/90 dark:bg-slate-900/90 shrink-0">
         <button
           type="button"
           onClick={() => useEditor.getState().deselect()}
-          className="tap-smooth inline-flex items-center gap-1 rounded-full border border-slate-300/80 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-700 transition-all cursor-pointer shrink-0 whitespace-nowrap active:scale-95"
+          className="tap-smooth inline-flex items-center gap-1 rounded-full border border-slate-300/80 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-[11px] font-semibold text-slate-700 dark:text-slate-200 shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-700 transition-all cursor-pointer shrink-0 whitespace-nowrap active:scale-95"
         >
-          <ArrowLeft className="size-3.5" />
+          <ArrowLeft className="size-3" />
           <span className="hidden sm:inline">Back to Store</span>
           <span className="sm:hidden">Back</span>
         </button>
 
         {/* 1 View vs 2 View Toggle */}
-        <div className="flex items-center gap-0.5 rounded-full border border-purple-200 dark:border-purple-800/80 bg-purple-50/80 dark:bg-purple-950/60 p-0.5 shadow-2xs text-[11px] font-medium shrink-0">
+        <div className="flex items-center gap-0.5 rounded-full border border-purple-200 dark:border-purple-800/80 bg-purple-50/80 dark:bg-purple-950/60 p-0.5 shadow-2xs text-[10px] sm:text-[11px] font-medium shrink-0">
           <button
             type="button"
             onClick={() => setCardView("1")}
             className={cn(
-              "rounded-full px-2.5 py-1 transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 font-semibold",
+              "rounded-full px-2 py-0.5 transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 font-semibold",
               cardView === "1"
                 ? "bg-purple-600 text-white shadow-2xs"
                 : "text-purple-700 dark:text-purple-300 hover:bg-purple-100/60 dark:hover:bg-purple-900/40"
             )}
           >
-            <Square className="size-3" />
+            <Square className="size-2.5" />
             <span>1 View</span>
           </button>
           <button
             type="button"
             onClick={() => setCardView("2")}
             className={cn(
-              "rounded-full px-2.5 py-1 transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 font-semibold",
+              "rounded-full px-2 py-0.5 transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 font-semibold",
               cardView === "2"
                 ? "bg-purple-600 text-white shadow-2xs"
                 : "text-purple-700 dark:text-purple-300 hover:bg-purple-100/60 dark:hover:bg-purple-900/40"
             )}
           >
-            <Columns2 className="size-3" />
+            <Columns2 className="size-2.5" />
             <span>2 View</span>
           </button>
         </div>
@@ -3767,7 +3779,7 @@ function ProductCardStudio() {
             onClick={() => setBackdrop("pattern")}
             title="Dot grid pattern background"
             className={cn(
-              "rounded-full px-2 py-0.5 transition-all cursor-pointer whitespace-nowrap",
+              "rounded-full px-1.5 sm:px-2 py-0.5 transition-all cursor-pointer whitespace-nowrap",
               backdrop === "pattern" ? "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 shadow-2xs font-semibold" : "text-muted hover:text-ink"
             )}
           >
@@ -3778,7 +3790,7 @@ function ProductCardStudio() {
             onClick={() => setBackdrop("light")}
             title="Light background"
             className={cn(
-              "rounded-full px-2 py-0.5 transition-all cursor-pointer whitespace-nowrap",
+              "rounded-full px-1.5 sm:px-2 py-0.5 transition-all cursor-pointer whitespace-nowrap",
               backdrop === "light" ? "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 shadow-2xs font-semibold" : "text-muted hover:text-ink"
             )}
           >
@@ -3789,7 +3801,7 @@ function ProductCardStudio() {
             onClick={() => setBackdrop("dark")}
             title="Dark background"
             className={cn(
-              "rounded-full px-2 py-0.5 transition-all cursor-pointer whitespace-nowrap",
+              "rounded-full px-1.5 sm:px-2 py-0.5 transition-all cursor-pointer whitespace-nowrap",
               backdrop === "dark" ? "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 shadow-2xs font-semibold" : "text-muted hover:text-ink"
             )}
           >
@@ -3964,7 +3976,7 @@ export function SiteFrame({ className }: { className?: string }) {
         key={pageId}
         className={cn(
           "animate-page-enter no-scrollbar h-full overflow-y-auto overscroll-contain",
-          !preview && "pb-28",
+          !preview && "pb-36",
         )}
       >
         {page.sections.map((sec) => renderSection(sec, device))}
